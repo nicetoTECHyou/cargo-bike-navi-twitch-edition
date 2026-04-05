@@ -5729,6 +5729,30 @@ ${trackpoints}        </TrackSegment>
             }
 
             stats.style.display = 'grid';
+
+            // Calculate estimated total distance and time from waypoint chain (without BRouter)
+            let estDistKm = 0;
+            const allPoints = [{ lat: state.lastGpsLat, lng: state.lastGpsLng }];
+            this.approvedWaypoints.forEach(wp => {
+                if (wp.lat && wp.lon) allPoints.push({ lat: wp.lat, lng: wp.lon });
+            });
+            for (let i = 1; i < allPoints.length; i++) {
+                if (allPoints[i-1].lat !== null && allPoints[i].lat !== null) {
+                    estDistKm += haversine(allPoints[i-1].lat, allPoints[i-1].lng, allPoints[i].lat, allPoints[i].lng);
+                }
+            }
+            // Estimate time based on profile default speed
+            const avgSpeeds = { fastbike:30, trekking:20, mtb:18, safety:15, 'car-fast':90, 'car-eco':70, walk:5 };
+            const avgKmh = avgSpeeds[state.profile] || 20;
+            const estTimeMin = Math.round((estDistKm / avgKmh) * 60);
+            const estTimeStr = estTimeMin < 60 ? estTimeMin + ' min' : Math.floor(estTimeMin/60) + 'h ' + (estTimeMin%60) + 'm';
+
+            // Only update if no BRouter-calculated route exists (don't overwrite precise values)
+            if (!state.routes || state.routes.length === 0) {
+                document.getElementById('twitch-route-distance').textContent = estDistKm.toFixed(1);
+                document.getElementById('twitch-route-time').textContent = '~' + estTimeStr;
+            }
+
             list.innerHTML = '';
 
             this.approvedWaypoints.forEach((wp, i) => {
