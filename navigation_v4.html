@@ -5305,29 +5305,39 @@ ${trackpoints}        </TrackSegment>
 
         onChatMessage(channel, userstate, msg) {
             const text = msg.trim();
-            if (!text.startsWith('!')) return;
-            const parts = text.split(/\s+/);
-            const command = parts[0].toLowerCase();
-            const args = parts.slice(1).join(' ');
+            if (!text) return;
             const username = userstate['display-name'] || userstate.username;
             const isMod = userstate.mod || userstate['user-type'] === 'mod';
             const isBroadcaster = userstate['badges'] && userstate['badges'].broadcaster;
             const isAdmin = isMod || isBroadcaster;
 
-            if (command === this.settings.command) {
-                this.handleWaypoint(username, args, isAdmin);
-            } else if (command === '!route') {
-                this.handleRoute(username);
-            } else if (command === '!stops') {
-                this.handleStops(username);
-            } else if (command === '!clearroute' && isAdmin) {
-                this.handleClearRoute(username);
-            } else if (command === '!approve' && isAdmin) {
-                const num = parseInt(args);
-                if (!isNaN(num)) this.approveWaypoint(num - 1);
-            } else if (command === '!reject' && isAdmin) {
-                const num = parseInt(args);
-                if (!isNaN(num)) this.rejectWaypoint(num - 1);
+            // Get user color from Twitch badges/tags (or default)
+            const userColor = userstate.color || '#ffffff';
+
+            // Show ALL chat messages in the chat panel
+            this.addChatMessage(username, text, userColor);
+
+            // Process commands
+            if (text.startsWith('!')) {
+                const parts = text.split(/\s+/);
+                const command = parts[0].toLowerCase();
+                const args = parts.slice(1).join(' ');
+
+                if (command === this.settings.command.toLowerCase()) {
+                    this.handleWaypoint(username, args, isAdmin);
+                } else if (command === '!route') {
+                    this.handleRoute(username);
+                } else if (command === '!stops') {
+                    this.handleStops(username);
+                } else if (command === '!clearroute' && isAdmin) {
+                    this.handleClearRoute(username);
+                } else if (command === '!approve' && isAdmin) {
+                    const num = parseInt(args);
+                    if (!isNaN(num)) this.approveWaypoint(num - 1);
+                } else if (command === '!reject' && isAdmin) {
+                    const num = parseInt(args);
+                    if (!isNaN(num)) this.rejectWaypoint(num - 1);
+                }
             }
         },
 
@@ -5400,9 +5410,6 @@ ${trackpoints}        </TrackSegment>
             // Public bot response
             this.say('🚲 @' + username + ' hat eine Adresse eingereicht — wartet auf Bestätigung!');
 
-            // Add to chat
-            this.addChatMessage(username, '📍 ' + address, '#f59e0b');
-
             // Update UI
             this.renderPendingQueue();
         },
@@ -5414,7 +5421,6 @@ ${trackpoints}        </TrackSegment>
             }
             const totalDist = this.approvedWaypoints.length;
             this.say('🗺️ Community-Route: ' + totalDist + ' Wegpunkte. Nächster Halt: ' + this.approvedWaypoints[0].address);
-            this.addChatMessage(username, '!route', '#3b82f6');
         },
 
         handleStops(username) {
