@@ -4,6 +4,35 @@ All notable changes to CargoNavi will be documented in this file.
 
 ---
 
+## [v1.2] — Auto-Approve, View Fixes, !charger & Route Reliability — 2026-04-05
+
+### Added
+- **Auto-Approve (ON by default)** — New setting in Twitch Settings panel. When enabled, every `!waypoint` submission from chat is automatically approved and added to the community route. No manual approve needed while driving. Toggle in ⚙️ Settings → "Auto-Freigabe" / "Auto-Approve". Respects all limits (cooldown, per-user, max total).
+- **Estimated Distance & Time** — `renderRouteList()` now calculates and displays estimated total distance and travel time immediately when waypoints are approved — no need to wait for BRouter. Uses haversine chain calculation (GPS → Via 1 → Via 2 → ... → Finish) with profile-based average speed. Displayed with `~` prefix (e.g., `~4h 23m`) to indicate it's an estimate. BRouter overwrites with precise values on successful calculation.
+- **BRouter Profile Fallback** — `calculateCommunityRoute()` now tries multiple routing profiles automatically when BRouter returns HTTP 500. Chain: selected profile → `trekking` → `car-fast` → `car-eco`. Each failure logs a warning and tries the next. Chat shows which profile was used (e.g., "Route calculated: 142.3 km, 1h 35m (fallback: trekking)"). If all profiles fail, shows tried profiles in error message.
+- **`!charger` Command** — New chat command to find and add the nearest EV charging station. Queries Overpass API for `amenity=charging_station` within 5km radius of current GPS position. Finds the nearest station by haversine distance, adds it as a waypoint with ⚡ icon + station name + distance (e.g., "⚡ Ionity Kassel (2.3km)"). Respects cooldown, auto-approve setting, and total waypoint limit. Error handling for: no GPS, no stations found, Overpass API failure.
+- **Follow View 3-Way Toggle** — Follow button now cycles through 3 modes instead of simple ON/OFF: **OFF** → **3D Follow** (pitch 60, camera behind vehicle with heading) → **Top-Down Follow** (pitch 0, bird's eye view) → **OFF**. Each mode shows a toast notification.
+- **Drone View Own Animation Loop** — Drone rotation now runs via its own `requestAnimationFrame` loop (`startDroneRotation()` / `stopDroneRotation()`) instead of relying on the navigation animation frame. Works outside of active navigation — toggle drone ON and the map rotates immediately. Uses `easeTo` with 50ms duration for smooth continuous rotation. GPS position updates only re-center the map without interfering with rotation.
+- **Cache-Busting Meta Tags** — Added `<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">`, `Pragma: no-cache`, and `Expires: 0` headers to `navigation_v4.html` to prevent browsers from serving stale cached versions.
+
+### Fixed
+- **Start Navigation Used Demo Mode** — `TwitchManager.startCommunityNav()` called `startDemoNavigation()` (animated simulation) instead of `startNavigation()` (real GPS navigation). Now correctly calls `startNavigation()` so pressing "Start Navigation" in the Twitch panel starts actual GPS-based navigation.
+- **Route Time Shows "1 min" for Hundreds of km** — BRouter sometimes returns `total-time` in seconds instead of milliseconds, or returns absurdly low values. Added sanity check: if `timeMs < 60000`, multiply by 1000 (seconds→ms). If calculated time is less than 30% of expected minimum for the distance, replace with profile-based estimate. Uses the same average speed table as the regular route calculator.
+- **Follow Button Didn't Switch Views** — `toggleFollowView()` was a simple boolean toggle (ON with pitch=60, OFF with pitch=0). No way to switch between 3D follow and top-down while driving. Replaced with 3-way cycle state machine using `state.followPitch`.
+- **Drone Button No Rotation** — `toggleDroneView()` set `isDroneView = true` but the rotation (`droneRotation += 0.3`) only executed inside `updateNavigation()` and `animateNavigation()` — which only run during active navigation. No rotation happened when toggling drone outside of navigation, and no immediate visual feedback was given when enabling drone view. Fixed with dedicated animation loop and immediate `easeTo` with pitch=70.
+- **Browser Cache Serving Old Code** — Service worker cache versions were incremented but browsers with strong cache would still serve stale `navigation_v4.html`. Added no-cache meta tags as belt-and-suspenders approach alongside service worker versioning.
+
+### Changed
+- **`calculateCommunityRoute()`** — Major rework: replaced single BRouter call with fallback profile chain. Added time sanity check (seconds→ms conversion, absurd value detection). Added fallback profile indicator in chat/toast messages. Error messages now include which profiles were tried.
+- **`renderRouteList()`** — Now calculates and displays estimated distance/time as baseline values. BRouter results overwrite estimates on success.
+- **`toggleFollowView()`** — Replaced boolean toggle with 3-way state machine (OFF → 3D → Top-Down → OFF).
+- **`toggleDroneView()`** — Added immediate visual transition (pitch=70, zoom=17) and dedicated rotation loop.
+- **Camera follow code in GPS/Demo navigation** — Both `updateNavigation()` and `animateNavigation()` now respect `state.followPitch` for follow mode. Drone mode delegates rotation to its own loop and only re-centers the map.
+- **GPS-only follow mode** — `onGpsPositionUpdate()` now also respects follow pitch and drone state when centering the map.
+- **Service Worker** — Cache version bumped from `cargonavi-v1` to `cargonavi-v6`.
+
+---
+
 ## [v1.1] — Smart Waypoint Routing & Twitch Bugfixes — 2026-04-05
 
 ### Added
@@ -18,28 +47,15 @@ All notable changes to CargoNavi will be documented in this file.
 
 ### Fixed
 - **Chat Messages Not Showing** — `onChatMessage()` discarded ALL non-command messages with `if (!text.startsWith('!')) return;`. Now ALL incoming Twitch chat messages are displayed in the chat panel. Command processing happens separately after display.
-- **Commands Not Accepted (Case Sensitivity)** — Command comparison `command === this.settings.command` was case-sensitive. If the user typed `!Waypoint` in settings but viewers sent `!waypoint`, it wouldn't match. Fixed with `.toLowerCase()` on both sides.
-- **ContentFilter False Positive on "Kassel"** — The bad-word filter used substring matching (`includes()`), so "Kassel" matched "ass" and was silently rejected. Rewrote filter to use word-start matching (`startsWith()`): "Kassel" no longer matches "ass", but "asshole" still does. L33t-speak detection ("f4ck", "s h i t") still works via concatenated text check.
-- **Duplicate Chat Messages** — Removed redundant `addChatMessage()` calls from `handleWaypoint()` and `handleRoute()` since all messages are now displayed in `onChatMessage()` before command processing.
-- **Route Not Cleared on `!clearroute`** — The `handleClearRoute()` chat command now also clears the route from the map and resets the distance/time stats display.
+- **Commands Not Accepted (Case Sensitivity)** — Command comparison `command === this.settings.command` was case-sensitive. Fixed with `.toLowerCase()` on both sides.
+- **ContentFilter False Positive on "Kassel"** — The bad-word filter used substring matching (`includes()`), so "Kassel" matched "ass" and was silently rejected. Rewrote filter to use word-start matching (`startsWith()`).
+- **Duplicate Chat Messages** — Removed redundant `addChatMessage()` calls from `handleWaypoint()` and `handleRoute()`.
+- **Route Not Cleared on `!clearroute`** — `handleClearRoute()` now also clears route GeoJSON from map source and resets stats display.
 
 ### Changed
-- **`renderRouteList()`** — Completely rewritten. Now shows route order number, role label (Via/Finish), waypoint address, submitter, distance badge, and remove button. Items are color-coded by role.
-- **`ContentFilter.check()`** — Rewrote from single-pass `includes()` to word-boundary-aware matching. Single words use `startsWith()` per word (catches "asshole" but not "Kassel"). Multi-segment l33t-speak words (containing spaces) use concatenated text check.
-- **`handleClearRoute()`** — Now clears route GeoJSON from map source and resets stats display.
-
-### Design Decisions
-- **Why auto-recalculate?** When driving, you can't tap "Calculate Route" after every approval. Auto-recalculate with 800ms debounce handles rapid approvals gracefully (approving 5 waypoints quickly triggers only one calculation).
-- **Why near-to-far sorting?** The most intuitive route for a cargo bike delivery is: nearest stop first, work your way outward, farthest point last. Viewers don't need to know the order — the app figures it out.
-- **Why word-start matching for bad words?** Substring matching ("Kassel" contains "ass") produces too many false positives on normal city names and addresses. Word-start matching is stricter: it catches standalone profanity and prefixed forms ("asshole") while allowing legitimate words ("Kassel", "classic", "pass").
-
-### Technical Notes
-- `getDistFromPos(wp)` uses `haversine()` with `state.lastGpsLat/Lng` for distance calculation
-- `sortAndLabelWaypoints()` handles both sort and role assignment in one pass
-- `setAsFinish(index)` uses closure-bound `onclick` handlers for correct index binding
-- `autoCalculateRoute()` uses `setTimeout`/`clearTimeout` pattern for debouncing
-- Route order: `GPS Position` → `Via 1` (nearest) → `Via 2` → ... → `Finish` (farthest)
-- ContentFilter preserves l33t-speak detection by checking `bw.includes(' ')` for multi-segment words
+- **`renderRouteList()`** — Completely rewritten with route order number, role label, color-coded items.
+- **`ContentFilter.check()`** — Rewrote from `includes()` to word-boundary-aware matching.
+- **`handleClearRoute()`** — Now clears route from map and resets stats.
 
 ---
 
@@ -48,108 +64,74 @@ All notable changes to CargoNavi will be documented in this file.
 CargoNavi v1.0 is the first official release of the cargo bike navigation system. It consolidates all prior development (v3.0–v3.5, v4.0) into a single, polished release with a complete feature set: real-time GPS navigation, voice guidance, interactive route planning, Twitch community integration, POI discovery, and a tabbed sidebar UI.
 
 ### Navigation & Routing
-- **Real-Time GPS Navigation** — "Start Navigation" uses the device's GPS signal via `watchPosition()`. A blue pulsing dot follows your position in real-time with live heading, speed (km/h), and accuracy display. Auto-arrival triggers when within 30m of the destination.
-- **Demo Mode** — Separate animated route simulation with vehicle icon (FRANKY, MTB, Racing Bike, or DeLorean). Runs independently from GPS navigation — both modes cannot be active simultaneously.
-- **Driven Path Tracking** — Actual GPS-driven path recorded and rendered as an orange line (#f97316) on the map. Planned route stays green. Points recorded only when moving ≥3m to avoid clutter at standstill.
-- **Intelligent Routing** — Bicycle-optimized routes via BRouter API with fallback to OSRM. Supports up to 3 alternative routes with deduplication (removes identical routes that BRouter sometimes returns).
-- **Interactive Waypoints** — Set via click & drag on the map. Waypoints are sorted by distance from start. Supports multi-stop routes.
-- **Elevation Profile** — Automatic ascent/descent calculation and display for the planned route.
+- **Real-Time GPS Navigation** — "Start Navigation" uses device GPS via `watchPosition()`. Blue pulsing dot with heading, speed (km/h), and accuracy display. Auto-arrival at 30m.
+- **Demo Mode** — Separate animated route simulation with vehicle icons (FRANKY, MTB, Racing Bike, DeLorean).
+- **Driven Path Tracking** — GPS path recorded as orange line (#f97316). Points recorded only when moving ≥3m.
+- **Intelligent Routing** — BRouter API with OSRM fallback. Up to 3 alternative routes with deduplication.
+- **Interactive Waypoints** — Click & drag on map, sorted by distance, multi-stop support.
+- **Elevation Profile** — Automatic ascent/descent calculation.
 - **Vehicle Dimensions** — Width & height inputs to avoid narrow paths and low bridges.
-- **Highway Avoidance** — Toggle to skip motorways and highways.
-- **Route Deduplication** — `deduplicateRoutes()` creates a coordinate fingerprint (first/last 5 points) to filter out identical alternatives from BRouter API.
+- **Highway Avoidance** — Toggle to skip motorways.
+- **Route Deduplication** — Coordinate fingerprint to filter identical BRouter alternatives.
 
 ### Voice Navigation
-- **Turn-by-Turn Announcements** — Web Speech API with distance triggers at 500m, 300m, 200m, 100m, 50m, and immediate "turn now" at the maneuver point.
-- **Route Deviation Warnings** — Off-route alert when >50m from planned route (throttled to 15s). Wrong-way detection when heading deviates >135° (throttled to 10s).
-- **Volume Controls** — Mute toggle, volume slider (0–100%), and speech rate selector (0.8x, 1.2x, 1.5x). Quick-mute button on the map during navigation.
-- **Bilingual** — Automatic German/English voice output based on app language setting.
+- **Turn-by-Turn** — Web Speech API with triggers at 500m, 300m, 200m, 100m, 50m, and immediate.
+- **Route Deviation** — Off-route alert >50m (15s throttle), wrong-way >135° (10s throttle).
+- **Volume Controls** — Mute, slider, speech rate (0.8x–1.5x).
+- **Bilingual** — German/English voice output.
 
 ### Map & UI
-- **Tabbed Sidebar** — 4 organized tabs for a clean, focused interface:
-  - **Route** — Start/destination search inputs, vehicle selector, routing profile, vehicle dimensions, options (avoid highways, elevation)
-  - **Navigate** — Custom speed, simulation speed, voice navigation controls, route info, navigation buttons, export, fullscreen, keyboard shortcuts
-  - **Twitch** — Chat connection, live chat display, pending waypoint queue, community route builder, collapsible settings
-  - **POI** — POI layer toggles (charging stations, camping, tourist attractions) and POI list
-- **Clean Map View** — Search inputs moved into the sidebar. Map shows only controls, route, direction shortcuts, and navigation overlays — no floating input boxes.
-- **Map Styles** — Satellite (ESRI World Imagery), Topographic, Street (OpenStreetMap), and Dark.
-- **Camera Modes** — Follow mode (behind vehicle) and Drone view (3D rotating).
-- **Dark Mode** — Light/dark theme toggle with full support across all UI components.
-- **Fullscreen Mode** — Toggle all UI for a map-only view.
-- **Bilingual UI** — German and English with 90+ i18n strings.
-- **Responsive Design** — Optimized for smartphone, tablet, and desktop.
-- **Keyboard Shortcuts** — Ctrl+N (navigation), Ctrl+D (dark mode), Ctrl+F (fullscreen), Esc (close).
+- **Tabbed Sidebar** — Route, Navigate, Twitch, POI tabs.
+- **Clean Map View** — Search in sidebar, map shows only controls and overlays.
+- **Map Styles** — Satellite, Topographic, Street, Dark.
+- **Dark Mode** — Light/dark theme with full component support.
+- **Fullscreen** — Ctrl+F for map-only view.
+- **Responsive** — Smartphone, tablet, desktop optimized.
+- **Keyboard Shortcuts** — Ctrl+N, Ctrl+D, Ctrl+F, Esc.
 
 ### Vehicle Profiles
-- **FRANKY** — Cargo bike with custom top-down marker and dedicated image.
-- **Mountain Bike** — Off-road profile with top-down marker.
-- **Racing Bike** — Street profile with top-down marker.
-- **DeLorean** — Easter egg with CSS glow effects at ≥88 km/h ("Flux Capacitor activated!").
-- Custom speed per profile (1–200 km/h) for accurate ETA calculations.
+- **FRANKY** — Cargo bike with custom marker.
+- **Mountain Bike** — Off-road with top-down marker.
+- **Racing Bike** — Street with top-down marker.
+- **DeLorean** — Easter egg with CSS glow at ≥88 km/h.
 
 ### POI & Search
-- **Address Search** — Nominatim / OpenStreetMap with throttled requests (respects 1 req/sec rate limit).
-- **EV Charging Stations** — Real-time Overpass API query with operator, socket types, and cost info.
-- **Camping Places** — Campsites and RV spots with details on tents, caravans, and WiFi.
-- **Tourist Attractions** — Castles, museums, churches, monuments, ruins, viewpoints, and more via Overpass API.
-- **POI List** — Sorted overview of nearest POIs with distance, category badges, and expandable details.
-- **Add to Route** — One-click "Add as Destination" or "Add as Via" from any POI popup.
+- **Address Search** — Nominatim with throttled requests.
+- **EV Charging** — Overpass API with operator, socket types, cost.
+- **Camping** — Campsites and RV spots.
+- **Tourist Attractions** — Castles, museums, churches, monuments, ruins.
+- **POI List** — Sorted nearest POIs with expandable details.
+- **Add to Route** — One-click from POI popup.
 
 ### Twitch Community Navigation
-- **Chat Connection** — Connect to any Twitch channel via tmi.js WebSocket client (no backend required). Channel name, bot name, and OAuth token inputs with auto-load from saved credentials.
-- **Secure Token Handling** — OAuth token stored as base64-encoded string in `localStorage`, never displayed in clear text. Show/hide toggle (eye icon) for manual verification. `typeof tmi` safety guard before connection attempt.
-- **Chat Commands** — Viewer-submitted waypoints via `!waypoint <address>`, `!route`, `!stops`. Moderator commands: `!approve <nr>`, `!reject <nr>`, `!clearroute` (mod/streamer only).
-- **Content Moderation** — Bad-word filter (DE/EN with word-start matching, l33t-speak detection), cooldown system per user, per-user submission limits, total waypoint cap, max character limit.
-- **Address Validation** — Submitted addresses validated via Nominatim API with graceful fallback on API failure.
-- **Pending Queue** — Visual list of submitted waypoints with username, address, timestamp, and approve/reject buttons. Bulk approve/reject all actions.
-- **Community Route Builder** — Approved waypoints auto-sorted near-to-far with automatic VIA/FINISH roles. Route calculates automatically on approve. Tap any Via to set as Finish.
-- **Live Chat Display** — Dark-themed chat panel showing ALL Twitch chat messages in real-time with timestamps and colored usernames (from Twitch user colors).
-- **Bot Responses** — Automated chat messages for transparency (pending notification, approval confirmation, route info). Rejected entries use silent reject principle.
-- **Collapsible Settings** — Command prefix, cooldown timer, max per user, max total, bad-word filter toggle, address validation toggle, max characters.
-- **Auto-Connect** — Optional auto-connection on page load if credentials are saved.
-- **GPX Export** — Export community routes directly from the Twitch tab.
-
-### Export & Sharing
-- **GPX** — GPS Exchange Format for GPS devices and apps.
-- **KML** — Google Earth / Maps format.
-- **TCX** — Training Center XML for sports apps.
-- **CSV** — Spreadsheet-compatible coordinate export.
-- **Google Maps** — Direct link to Google Maps with route preview.
+- **Chat Connection** — tmi.js WebSocket, no backend.
+- **Secure Token** — base64 in localStorage, show/hide toggle.
+- **Chat Commands** — `!waypoint`, `!route`, `!stops`, `!approve`, `!reject`, `!clearroute`.
+- **Content Moderation** — Bad-word filter, cooldown, limits.
+- **Address Validation** — Nominatim with graceful fallback.
+- **Pending Queue** — Visual list with approve/reject.
+- **Community Route** — Auto-sorted near-to-far, VIA/FINISH auto-assignment.
+- **GPX Export** — From Twitch tab.
 
 ### Technical Architecture
-- **Single-File HTML** — Entire application in one file (5826 lines) with embedded CSS and JavaScript.
-- **MapLibre GL JS v4.7** — Map rendering with GeoJSON sources and layers.
-- **BRouter API** — Bicycle-optimized routing with cache-busting timestamps.
-- **Nominatim (OSM)** — Geocoding via JSONP with throttled requests.
-- **Overpass API** — POI queries (charging, camping, tourist).
-- **Web Speech API** — Browser-native voice synthesis (no API keys).
-- **tmi.js v1.9.0-pre.1** — Twitch chat via WebSocket CDN (v1.8.5 has no browser bundle).
-- **Tailwind CSS + Custom CSS** — Styling with dark mode support.
-- **Service Worker** — Offline caching (cache-first for static assets, network-first for dynamic content).
-- **PWA** — Installable on Android, iOS, and desktop.
+- **Single-File HTML** — Entire app in one file with embedded CSS/JS.
+- **MapLibre GL JS v4.7**, **BRouter API**, **Nominatim (OSM)**, **Overpass API**, **Web Speech API**, **tmi.js v1.9.0-pre.1**.
+- **Tailwind CSS + Custom CSS** with dark mode.
+- **Service Worker** — Offline caching.
+- **PWA** — Installable on Android, iOS, desktop.
 - **100% Client-Side** — No backend, no API keys, no data collection.
-- **Race Condition Protection** — `routeCalcVersion` counter prevents stale API responses from overwriting newer results.
-- **Performance** — Sliding window optimization for `distToRoute()` on long routes (±500 point search window).
 
-### Bug Fixes (from prior development, included in v1.0)
-- Stale route bug fixed with version counter for race condition prevention
-- Ghost routes cleared by resetting all GeoJSON sources before population
-- Browser HTTP cache bypassed with cache-busting timestamps on API URLs
-- Service worker cache versioning to prevent stale code after deployments
-- GPS `watchPosition` leak fixed — old watches cleared before starting new ones
-- Nominatim rate limit respected via `throttledNominatim()`
-- Duplicate castle POIs removed from Overpass query
-- XSS via apostrophes in POI names fixed with `data-name` attributes
-- Dark mode and language preferences now persist via `localStorage`
-- `distToRoute()` performance optimized with sliding window on long routes
-- Alternative routes now visible at 0.4 opacity (previously invisible)
-- Toast notifications limited to 3 visible (previously unlimited stack)
-- Dead code (`VoiceNav.lastBracket`) removed
-- View controls no longer stuck hidden after clearing routes
-- JSONP callback leak fixed with unified `cleanup()` function
-- Alternative routes panel now shows (deduplication removes identical routes from BRouter)
-- Route colors reassigned correctly after deduplication
-- tmi.js CDN URL fixed to `@1.9.0-pre.1` (v1.8.5 had no browser bundle)
-- `typeof tmi` safety guard added before Twitch connection attempt
+### Bug Fixes (from prior development)
+- Race condition prevention with version counter
+- Ghost routes cleared, HTTP cache bypassed
+- GPS `watchPosition` leak fixed
+- Nominatim rate limit respected
+- XSS via apostrophes fixed
+- Dark mode/language preferences persist
+- `distToRoute()` performance optimized
+- Alternative routes visible at 0.4 opacity
+- Toast notifications limited to 3
+- tmi.js CDN fixed to v1.9.0-pre.1
 
 ---
 
@@ -157,7 +139,7 @@ CargoNavi v1.0 is the first official release of the cargo bike navigation system
 
 ```
 CargoNavi/
-├── navigation_v4.html      # Main application (v1.1)
+├── navigation_v4.html      # Main application (v1.2)
 ├── navigation_v3.html      # Legacy version (backup)
 ├── manifest.json           # PWA manifest
 ├── sw.js                   # Service worker (offline cache)

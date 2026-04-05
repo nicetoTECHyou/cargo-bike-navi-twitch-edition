@@ -10,7 +10,7 @@
 [![GPS](https://img.shields.io/badge/GPS-Realtime-3b82f6?style=flat-square)]()
 [![Twitch](https://img.shields.io/badge/Twitch-Community_Navigation-9146FF?style=flat-square)]()
 [![Tabs](https://img.shields.io/badge/UI-Tabbed_Sidebar-10b981?style=flat-square)]()
-[![Version](https://img.shields.io/badge/Version-1.1-059669?style=flat-square)]()
+[![Version](https://img.shields.io/badge/Version-1.2-059669?style=flat-square)]()
 
 **Dein Lastenrad-Navi: Ohne App Store, ohne Backend, ohne Datensammlung und vor allem ohne Kosten.**
 
@@ -41,7 +41,7 @@ CargoNavi ist eine **Progressive Web App**. Du kannst sie ohne App Store direkt 
 * **Echte GPS-Navigation:** Start Navigation nutzt das echte GPS-Signal deines Geräts — blauer GPS-Punkt folgt deiner Position in Echtzeit mit Genauigkeitskreis und Kompass-Indikator.
 * **Demo-Modus:** Separater Button zum virtuellen Abfahren der Route mit animiertem Fahrzeug-Icon — läuft unabhängig von der GPS-Navigation.
 * **Fahrspur-Tracking:** Gefahrene GPS-Route wird als orange Linie (#f97316) auf der Karte eingezeichnet — geplante Route bleibt in Grün. GPS-Punkte nur bei ≥3m Bewegung aufgezeichnet.
-* **Intelligentes Routing:** Fahrradoptimierte Strecken via BRouter-API mit OSRM-Fallback. Bis zu 3 Alternativrouten mit automatischer Deduplikation identischer Routen.
+* **Intelligentes Routing:** Fahrradoptimierte Strecken via BRouter-API mit automatischem Profil-Fallback (fastbike → trekking → car-fast → car-eco) bei Serverfehlern. Bis zu 3 Alternativrouten mit automatischer Deduplikation.
 * **Interaktive Planung:** Wegpunkte per Klick & Drag setzen, automatisch nach Entfernung sortiert. Multi-Stop-Routen unterstützt.
 * **Echte Geschwindigkeit:** GPS-Modus zeigt deine reale Geschwindigkeit in km/h an — oder berechnet sie aus aufeinanderfolgenden GPS-Positionen.
 * **Auto-Arrival:** Erkennt automatisch wenn du innerhalb von 30m des Ziels ankommst.
@@ -79,22 +79,35 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 * **Chat-Verbindung:** Verbinde dich mit deinem Twitch-Kanal per tmi.js WebSocket — kein Backend nötig. Kanalname, Bot-Name und OAuth-Token mit Auto-Load.
 * **Sichere Token-Verwaltung:** OAuth-Token wird base64-verschlüsselt in localStorage gespeichert, nie im Klartext angezeigt. Show/Hide-Toggle (Eye-Icon) für manuelle Prüfung. Sicherheits-Check vor Verbindungsaufbau.
 * **Live Chat:** Dark-Themed Chat-Panel zeigt **alle** Twitch-Nachrichten in Echtzeit mit Zeitstempel und farbigen Usernamen (aus Twitch-User-Farben). Nicht nur Commands — der ganze Chat ist sichtbar.
-* **Chat-Commands:** Viewer reichen Wegpunkte per `!waypoint <Adresse>` ein. Mods verwalten per `!approve <nr>` / `!reject <nr>`. Streamer: `!clearroute`.
+* **Chat-Commands:**
+  - `!waypoint <Adresse>` — Wegpunkt einreichen (Jeder User)
+  - `!charger` — Nächste Ladestation finden & hinzufügen (Sucht 5km Umkreis via Overpass API, fügt nearest Station als ⚡ Wegpunkt hinzu)
+  - `!route` — Aktuelle Route anzeigen
+  - `!stops` — Alle Stopps listen
+  - `!approve <nr>` / `!reject <nr>` — Mod-Commands
+  - `!clearroute` — Route leeren (Mod/Streamer)
+* **Auto-Freigabe:** Wegpunkte werden automatisch freigeschaltet und zur Route hinzugefügt (einstellbar in ⚙️ Settings). Perfekt zum Fahren — kein Klicken nötig.
+* **⚡ !charger Command:** Findet die nächstgelegene EV-Ladestation im 5km Umkreis deiner GPS-Position via Overpass API. Zeigt Stationsnamen und Entfernung im Chat. Wird automatisch als Wegpunkt hinzugefügt mit ⚡ Icon.
 * **Content-Moderation:** Bad-Word-Filter (DE/EN inkl. L33t-Speak-Erkennung, Wortanfang-Matching statt Substring), Cooldown pro User, Limits pro User & gesamt, maximale Zeichenanzahl.
 * **Adressvalidierung:** Eingereichte Adressen werden via Nominatim API validiert — graceful Fallback bei API-Fehler.
-* **Pending Queue:** Visuelle Liste mit Username, Adresse, Zeitstempel und Approve/Reject-Buttons. Bulk-Actions (Alle akzeptieren/ablehnen).
-* **🧠 Smart Auto-Routing (NEU):** Freigegebene Wegpunkte werden automatisch sortiert (nah → fern) und als VIA/Finish zugewiesen. Route wird automatisch bei jedem Approve/Remove neu berechnet — kein Klicken während der Fahrt nötig.
-* **🏁 Smart Finish-Logik:** Der am weitesten entfernte Punkt wird automatisch zum Finish. Wenn ein neuer Punkt noch weiter weg ist, wird er das neue Finish und das alte wird zum VIA. Manuelles Setzen per Tap auf einen VIA-Punkt.
-* **📍 Entfernungs-Badges:** Jeder freigegebene Wegpunkt zeigt seine Entfernung von der aktuellen GPS-Position (z.B. "2.3km", "150m").
-* **🎨 Farbcodierte Routenliste:** VIA-Stopps sind blau, Finish ist amber/gold. Ein Klick auf einen VIA macht ihn zum Finish.
+* **Pending Queue:** Visuelle Liste mit Username, Adresse, Zeitstempel und Approve/Reject-Buttons. Bulk-Actions (Alle akzeptieren/ablehnen). Nur sichtbar wenn Auto-Approve AUS ist.
+* **🧠 Smart Auto-Routing:** Freigegebene Wegpunkte werden automatisch sortiert (nah → fern) und als VIA/Finish zugewiesen. Route wird automatisch bei jedem Approve/Remove neu berechnet — kein Klicken während der Fahrt nötig.
+* **📍 Geschätzte Distanz & Zeit:** Zeigt sofort Schätzungen basierend auf Luftlinie und Profil-Geschwindigkeit an (z.B. `~4h 23m`). BRouter überschreibt bei erfolgreicher Berechnung mit genauen Werten.
+* **🏁 Smart Finish-Logik:** Der am weitesten entfernte Punkt wird automatisch zum Finish. Wenn ein neuer Punkt noch weiter weg ist, wird er das neue Finish und das alte wird zum VIA.
+* **🔄 BRouter Fallback:** Wenn das gewählte Routing-Profil fehlschlägt (HTTP 500), werden automatisch Alternativprofile probiert (trekking → car-fast → car-eco).
+* **🎨 Farbcodierte Routenliste:** VIA-Stopps sind blau, Finish ist amber/gold. Entfernungs-Badges und Remove-Buttons.
 * **GPX-Export:** Community-Routen direkt aus dem Twitch-Tab exportieren.
+
+### 🎥 Kamera-Ansichten
+* **3-Wege Follow Toggle:** Follow-Button dreht durch 3 Modi — **OFF** → **3D Follow** (pitch 60, Kamera hinter Fahrzeug mit Kompass) → **Top-Down Follow** (pitch 0, Vogelperspektive) → **OFF**.
+* **Drone-View:** Eigene Animation-Loop für flüssige 360°-Rotation — funktioniert auch außerhalb der aktiven Navigation. Pitch 70, immediate Visual Feedback beim Einschalten.
+* **GPS-Follow respektiert Ansicht:** Follow-Modus beim normalen GPS-Tracking (ohne Navigation) nutzt den gewählten Pitch/Bearing.
 
 ### 🌍 System & UI
 * **Tabbed Sidebar:** 4 organisierte Tabs — Route, Navigate, Twitch, POI — für eine aufgeräumte, fokussierte Oberfläche mit grünem Active-Indicator.
 * **Clean Map View:** Sucheingaben in der Sidebar — Karte zeigt nur Controls, Route, Richtungs-Shortcuts und Navi-Overlays. Keine schwebenden Eingabefelder mehr.
 * **Dark Mode:** Helles und dunkles Theme per Klick umschaltbar — volle Unterstützung in allen UI-Komponenten. Einstellungen persistent via localStorage.
 * **Kartenstile:** Satellit, Topographisch, Straßenkarte & Dunkle Karte per Dropdown.
-* **Ansichten:** Folgemodus (hinter dem Fahrzeug) & Drohnenansicht (3D rotierend).
 * **Vollbildmodus:** Komplett auf die Karte fokussieren — UI ein-/ausblenden per Ctrl+F.
 * **Mehrsprachig:** Deutsch & Englisch per Klick umschaltbar — 90+ i18n-Strings.
 * **GPS Live-Tracking:** Eigene Position mit Genauigkeitskreis & Kompass-Indikator. Auto-Center beim Laden.
@@ -103,6 +116,7 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 * **Tastenkürzel:** Strg+N (Navigation), Strg+D (Dark Mode), Strg+F (Vollbild), Esc (Schließen).
 * **Race-Condition-Schutz:** Versionszähler verhindert, dass veraltete API-Antworten neuere Ergebnisse überschreiben.
 * **Performance:** Sliding-Window-Optimierung für Distanzberechnung auf langen Routen (±500 Punkte Suchfenster).
+* **Cache-Busting:** No-Cache Meta-Tags + Service Worker Versionierung verhindern, dass der Browser alte Code-Versionen ausliefert.
 
 ---
 
@@ -111,20 +125,21 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 | Komponente | Technologie |
 | :--- | :--- |
 | **Karte** | [MapLibre GL JS](https://maplibre.org/) v4.7 |
-| **Routing** | [BRouter](https://brouter.de/) API (+ OSRM Fallback) |
+| **Routing** | [BRouter](https://brouter.de/) API (mit Profil-Fallback-Kette) |
 | **Geocoding** | Nominatim (OSM) via JSONP (throttled) |
 | **POIs** | [Overpass API](https://overpass-api.de/) |
+| **Ladestationen** | Overpass API `amenity=charging_station` (5km Radius) |
 | **Sprachausgabe** | Web Speech API (`speechSynthesis`) |
 | **Twitch Chat** | [tmi.js](https://tmi.js/) v1.9.0-pre.1 (WebSocket CDN) |
 | **Styling** | Tailwind CSS + Custom CSS (Dark Mode) |
-| **Architektur** | 100% Client-Side (Single-File HTML, 5826 Zeilen) |
+| **Architektur** | 100% Client-Side (Single-File HTML, ~6100 Zeilen) |
 | **Offline** | Service Worker (Cache-First für Assets, Network-First für API) |
 | **PWA** | Installierbar auf Android, iOS, Desktop |
 
 ### 📂 Dateistruktur
 ```text
 CargoNavi/
-├── navigation_v4.html      # Hauptdatei (v1.1)
+├── navigation_v4.html      # Hauptdatei (v1.2)
 ├── navigation_v3.html      # Vorherige Version (Backup)
 ├── manifest.json           # PWA-Manifest
 ├── sw.js                   # Service Worker (Offline-Cache)
@@ -144,6 +159,7 @@ CargoNavi/
 
 | Version | Datum | Beschreibung |
 | :--- | :--- | :--- |
+| **v1.2** | 2026-04-05 | Auto-Approve, Follow/Drone View Fix, !charger Command, BRouter Fallback, Zeit-Schätzung, GPS Nav Fix, Cache-Busting |
 | **v1.1** | 2026-04-05 | Smart Auto-Routing (nah→fern Sortierung, VIA/Finish Logik, Auto-Recalculate), Twitch Bugfixes (Chat-Display, Commands, ContentFilter) |
 | **v1.0** | 2026-04-05 | Erste offizielle Veröffentlichung. GPS-Navigation, Sprachansagen, Twitch-Integration, Tabbed Sidebar, POIs, Export |
 | v0.5 | 2026-04-05 | GPS-Nav Marker (blauer Puls-Punkt), Fahrspur-Tracking (orange), Fahrzeug-Icons nur im Demo-Modus, Alternativrouten-Fix |
