@@ -291,6 +291,46 @@
             pointer-events:none;
         }
 
+        /* NAVIGATION CHAT OVERLAY (bottom-left on map during nav) */
+        #nav-chat-overlay {
+            position:absolute; bottom:80px; left:14px; z-index:10;
+            width:320px; max-width:calc(100vw - 28px);
+            display:none; /* shown via JS when navigating + Twitch connected */
+            pointer-events:none;
+        }
+        #nav-chat-overlay.visible { display:block; }
+        #nav-chat-overlay .nav-chat-bg {
+            background:rgba(0,0,0,0.55);
+            backdrop-filter:blur(12px);
+            -webkit-backdrop-filter:blur(12px);
+            border-radius:12px;
+            padding:8px 12px;
+            border:1px solid rgba(255,255,255,0.1);
+        }
+        #nav-chat-overlay .nav-chat-header {
+            font-size:10px; color:rgba(255,255,255,0.5); margin-bottom:4px;
+            text-transform:uppercase; letter-spacing:1px; font-weight:600;
+        }
+        #nav-chat-overlay .nav-chat-msg {
+            font-size:12px; line-height:1.5; padding:2px 0;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        #nav-chat-overlay .nav-chat-msg .nav-chat-time {
+            font-size:10px; color:rgba(255,255,255,0.35); margin-right:4px;
+        }
+        #nav-chat-overlay .nav-chat-msg .nav-chat-name {
+            font-weight:700; margin-right:4px;
+            text-shadow:0 1px 3px rgba(0,0,0,0.8);
+        }
+        #nav-chat-overlay .nav-chat-msg .nav-chat-text {
+            color:rgba(255,255,255,0.85);
+            text-shadow:0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.5);
+        }
+        #nav-chat-overlay .nav-chat-system {
+            font-size:11px; color:rgba(255,255,255,0.6); padding:1px 0;
+            text-shadow:0 1px 3px rgba(0,0,0,0.8);
+        }
+
         /* ============================================ */
         /* SPEED DISPLAY                                */
         /* ============================================ */
@@ -1069,7 +1109,7 @@ html.dark .twitch-route-user { color:#94a3b8; }
                         <input type="password" class="nav-input" id="twitch-token" placeholder="oauth:xxxxxxxxxx" style="font-size:12px;" autocomplete="off">
                         <button class="twitch-token-toggle" onclick="toggleTokenVisibility()" title="Show/Hide Token"><i class="fas fa-eye" id="twitch-token-eye"></i></button>
                     </div>
-                    <div style="font-size:10px;color:#94a3b8;margin-top:4px;"><i class="fas fa-lock" style="margin-right:4px;"></i><span data-i18n="twitch.tokenHint">Token is stored encrypted locally. Get yours at twitchtokengenerator.com</span></div>
+                    <div style="font-size:10px;color:#94a3b8;margin-top:4px;"><i class="fas fa-lock" style="margin-right:4px;"></i><span data-i18n="twitch.tokenHint">Token is stored encrypted locally. Get yours at twitchapps.com/tmi</span></div>
                 </div>
                 
                 <button class="twitch-connect-btn connect" id="twitch-connect-btn" onclick="TwitchManager.toggleConnection()">
@@ -1282,6 +1322,14 @@ html.dark .twitch-route-user { color:#94a3b8; }
         <div id="speed-display">
             <div class="speed-value" id="speed-value">0</div>
             <div class="speed-unit">km/h</div>
+        </div>
+
+        <!-- Navigation Chat Overlay (last 3 Twitch messages, visible during nav) -->
+        <div id="nav-chat-overlay">
+            <div class="nav-chat-bg">
+                <div class="nav-chat-header">💬 Live Chat</div>
+                <div id="nav-chat-messages"></div>
+            </div>
         </div>
 
         <!-- Navigation Instructions -->
@@ -3891,6 +3939,9 @@ html.dark .twitch-route-user { color:#94a3b8; }
         state.navMode = 'gps';
         state.isFollowing = true;
 
+        // Show nav chat overlay if Twitch connected
+        TwitchManager.updateNavChatVisibility();
+
         // Reset voice navigation state
         VoiceNav.reset();
         VoiceNav.init();
@@ -4095,6 +4146,9 @@ html.dark .twitch-route-user { color:#94a3b8; }
         state.animProgress = 0;
         state.isFollowing = true;
 
+        // Show nav chat overlay if Twitch connected
+        TwitchManager.updateNavChatVisibility();
+
         // Reset voice navigation state
         VoiceNav.reset();
         VoiceNav.init();
@@ -4154,6 +4208,9 @@ html.dark .twitch-route-user { color:#94a3b8; }
         state.isFollowing = false;
         state.isDroneView = false;
         state.navMode = 'gps'; // reset default
+
+        // Hide nav chat overlay
+        TwitchManager.updateNavChatVisibility();
 
         // Cancel any pending voice
         VoiceNav.reset();
@@ -5365,6 +5422,7 @@ ${trackpoints}        </TrackSegment>
             }
             this.connected = false;
             this.updateStatusUI(false);
+            this.updateNavChatVisibility();
         },
 
         toggleConnection() {
@@ -5375,6 +5433,7 @@ ${trackpoints}        </TrackSegment>
         onConnected() {
             this.connected = true;
             this.updateStatusUI(true);
+            this.updateNavChatVisibility();
             this.addChatMessage('CargoNavi', '🚲 Connected! Viewers can use ' + this.settings.command + ' <address> to submit waypoints.', '#10b981');
             showToast('Connected to Twitch chat!', 'success');
         },
@@ -5382,6 +5441,7 @@ ${trackpoints}        </TrackSegment>
         onDisconnected() {
             this.connected = false;
             this.updateStatusUI(false);
+            this.updateNavChatVisibility();
             this.addChatMessage('System', '⚠️ Disconnected from Twitch chat.', '#ef4444');
         },
 
@@ -5860,6 +5920,59 @@ ${trackpoints}        </TrackSegment>
             // Keep max 50 messages
             while (chat.querySelectorAll('.twitch-chat-msg').length > 50) {
                 chat.querySelector('.twitch-chat-msg').remove();
+            }
+
+            // Update navigation chat overlay if visible
+            this.updateNavChatOverlay();
+        },
+
+        // Update the navigation chat overlay with last 3 messages
+        updateNavChatOverlay() {
+            const overlay = document.getElementById('nav-chat-overlay');
+            if (!overlay || !overlay.classList.contains('visible')) return;
+
+            const container = document.getElementById('nav-chat-messages');
+            const chatMsgs = document.querySelectorAll('#twitch-chat .twitch-chat-msg');
+            if (chatMsgs.length === 0) {
+                container.innerHTML = '<div class="nav-chat-system">Noch keine Nachrichten</div>';
+                return;
+            }
+
+            // Get last 3 messages
+            const last3 = Array.from(chatMsgs).slice(-3);
+            let html = '';
+            last3.forEach(msg => {
+                const timeEl = msg.querySelector('.twitch-chat-time');
+                const nameEl = msg.querySelector('.twitch-chat-username');
+                const textContent = msg.lastChild ? msg.lastChild.textContent : '';
+                const time = timeEl ? timeEl.textContent : '';
+                const name = nameEl ? nameEl.textContent : 'System';
+                const nameColor = nameEl ? nameEl.style.color : '#ffffff';
+                const isSystem = (name === 'System' || name === 'CargoNavi');
+
+                if (isSystem) {
+                    html += '<div class="nav-chat-system">' + escapeXml(textContent) + '</div>';
+                } else {
+                    html += '<div class="nav-chat-msg">' +
+                        '<span class="nav-chat-time">' + escapeXml(time) + '</span>' +
+                        '<span class="nav-chat-name" style="color:' + nameColor + '">' + escapeXml(name) + '</span>' +
+                        '<span class="nav-chat-text">' + escapeXml(textContent) + '</span>' +
+                        '</div>';
+                }
+            });
+            container.innerHTML = html;
+        },
+
+        // Show/hide nav chat overlay based on navigation + Twitch state
+        updateNavChatVisibility() {
+            const overlay = document.getElementById('nav-chat-overlay');
+            if (!overlay) return;
+
+            if (state.isNavigating && this.connected) {
+                overlay.classList.add('visible');
+                this.updateNavChatOverlay();
+            } else {
+                overlay.classList.remove('visible');
             }
         },
 

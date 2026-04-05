@@ -10,13 +10,13 @@
 [![GPS](https://img.shields.io/badge/GPS-Realtime-3b82f6?style=flat-square)]()
 [![Twitch](https://img.shields.io/badge/Twitch-Community_Navigation-9146FF?style=flat-square)]()
 [![Tabs](https://img.shields.io/badge/UI-Tabbed_Sidebar-10b981?style=flat-square)]()
-[![Version](https://img.shields.io/badge/Version-1.2.1-059669?style=flat-square)]()
+[![Version](https://img.shields.io/badge/Version-1.3-059669?style=flat-square)]()
 
 **Dein Lastenrad-Navi: Ohne App Store, ohne Backend, ohne Datensammlung und vor allem ohne Kosten.**
 
 <br>
 
-[![Open CargoNavi](https://img.shields.io/badge/🚲_CargoNavi_öffnen-Navi_Starten-2ea44f?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPjwvc3ZnPg==)](https://nicetotechyou.github.io/cargo-bike-navi-twitch-edition/navigation_v4.html)
+[![Open CargoNavi](https://img.shields.io/badge/🚲_CargoNavi_öffnen-Navi_Starten-2ea44f?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPjwvc3ZnPg==)](https://nicetotechyou.github.io/Cargo-Bike-Navi/navigation_v4.html)
 
 </div>
 
@@ -95,6 +95,7 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 * **📍 Geschätzte Distanz & Zeit:** Zeigt sofort Schätzungen basierend auf Luftlinie und Profil-Geschwindigkeit an (z.B. `~4h 23m`). BRouter überschreibt bei erfolgreicher Berechnung mit genauen Werten.
 * **🏁 Smart Finish-Logik:** Der am weitesten entfernte Punkt wird automatisch zum Finish. Wenn ein neuer Punkt noch weiter weg ist, wird er das neue Finish und das alte wird zum VIA.
 * **🔄 BRouter Fallback:** Wenn das gewählte Routing-Profil fehlschlägt (HTTP 500), werden automatisch Alternativprofile probiert (trekking → car-fast → car-eco).
+* **🗺️ Community-Marker auf der Karte:** Freigegebene Wegpunkte erscheinen als farbige Marker direkt auf der Karte — Start (grün 📍), Via (blau 📍 mit Nummer), Finish (amber 🏁). Hover-Effekt, Klick-Popup mit Adresse & Username. Automatisch aktualisiert bei Änderungen.
 * **🎨 Farbcodierte Routenliste:** VIA-Stopps sind blau, Finish ist amber/gold. Entfernungs-Badges und Remove-Buttons.
 * **GPX-Export:** Community-Routen direkt aus dem Twitch-Tab exportieren.
 
@@ -102,6 +103,7 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 * **3-Wege Follow Toggle:** Follow-Button dreht durch 3 Modi — **OFF** → **3D Follow** (pitch 60, Kamera hinter Fahrzeug mit Kompass) → **Top-Down Follow** (pitch 0, Vogelperspektive) → **OFF**.
 * **Drone-View:** Eigene Animation-Loop für flüssige 360°-Rotation — funktioniert auch außerhalb der aktiven Navigation. Pitch 70, immediate Visual Feedback beim Einschalten.
 * **GPS-Follow respektiert Ansicht:** Follow-Modus beim normalen GPS-Tracking (ohne Navigation) nutzt den gewählten Pitch/Bearing.
+* **💬 Nav Chat Overlay:** Während der Navigation erscheinen die letzten 3 Twitch-Chat-Nachrichten als halbtransparentes Overlay auf der Karte (unten links). Glasmorphism-Design mit Blur-Effekt, Twitch-Farben der Usernamen, doppelter Text-Schatten für Lesbarkeit auf jeder Karte. System-Nachrichten dezent dargestellt. Erscheint automatisch bei Nav-Start + Twitch-Verbunden, verschwindet bei Nav-Stop oder Disconnect. Blockiert keine Karten-Interaktion (`pointer-events: none`).
 
 ### 🌍 System & UI
 * **Tabbed Sidebar:** 4 organisierte Tabs — Route, Navigate, Twitch, POI — für eine aufgeräumte, fokussierte Oberfläche mit grünem Active-Indicator.
@@ -139,7 +141,7 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 ### 📂 Dateistruktur
 ```text
 CargoNavi/
-├── navigation_v4.html      # Hauptdatei (v1.2.1)
+├── navigation_v4.html      # Hauptdatei (v1.3)
 ├── navigation_v3.html      # Vorherige Version (Backup)
 ├── manifest.json           # PWA-Manifest
 ├── sw.js                   # Service Worker (Offline-Cache)
@@ -159,6 +161,7 @@ CargoNavi/
 
 | Version | Datum | Beschreibung |
 | :--- | :--- | :--- |
+| **v1.3** | 2026-04-06 | Nav Chat Overlay, Community Wegpunkt-Marker auf Karte, !charger Koordinaten-Fix |
 | **v1.2.1** | 2026-04-05 | Bugfix: Glyphs Console-Spam, Overpass 504 Timeout, Profil-Fallback Fix |
 | **v1.2** | 2026-04-05 | Auto-Approve, Follow/Drone View Fix, !charger Command, BRouter Fallback, Zeit-Schätzung, GPS Nav Fix, Cache-Busting |
 | **v1.1** | 2026-04-05 | Smart Auto-Routing (nah→fern Sortierung, VIA/Finish Logik, Auto-Recalculate), Twitch Bugfixes (Chat-Display, Commands, ContentFilter) |

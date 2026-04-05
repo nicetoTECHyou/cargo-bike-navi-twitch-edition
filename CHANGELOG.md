@@ -4,6 +4,23 @@ All notable changes to CargoNavi will be documented in this file.
 
 ---
 
+## [v1.3] — Nav Chat Overlay, Community Markers, Charger Fix — 2026-04-06
+
+### Added
+- **Navigation Chat Overlay** — During navigation, the last 3 Twitch chat messages appear as a semi-transparent overlay on the map (bottom-left, above the speed display). Glass-morphism design with `backdrop-filter: blur(12px)`, 55% opacity dark background. Username colors are preserved from Twitch, text has double text-shadow for readability on any map surface (satellite, street, dark). System messages shown in muted style. Overlay only visible when both navigation is active AND Twitch is connected. Automatically appears/disappears on nav start/stop and Twitch connect/disconnect. Non-interactive (`pointer-events: none`) so it never blocks map interaction. Single-line ellipsis prevents overflow.
+- **Community Waypoint Markers on Map** — Approved Twitch waypoints now appear as colored markers on the map. Start = green 📍 with "S" badge, Via = blue 📍 with number badge, Finish = amber 🏁 marker. Each marker has: hover scale effect (1.15×), click popup showing address + username + role, and an order number badge. Markers auto-update when waypoints are approved/removed/ reordered, and are cleanly removed when the route is cleared.
+
+### Fixed
+- **`!charger` Overpass Query Missing Coordinates** — Overpass QL `out tags;` only returns node tags without `lat`/`lon`. All 23/109 found chargers were skipped because coordinates were undefined. Changed to `out;` (plain default output) which always includes `type`, `id`, `lat`, `lon`, and `tags` for nodes. Works consistently across all 3 Overpass API servers (`overpass-api.de`, `overpass.kumi.systems`, `maps.mail.ru`). Added v2 debug logging with element key inspection and skip counter.
+
+### Changed
+- **Service Worker** — Cache version bumped from `cargonavi-v9` to `cargonavi-v14`.
+- **`addChatMessage()`** — Now also calls `updateNavChatOverlay()` to keep the navigation overlay in sync.
+- **`startNavigation()` / `startDemoNavigation()` / `stopNavigation()`** — Now call `TwitchManager.updateNavChatVisibility()` to show/hide the chat overlay.
+- **`onConnected()` / `onDisconnected()` / `disconnect()`** — Now call `updateNavChatVisibility()` to show/hide overlay based on Twitch connection state.
+
+---
+
 ## [v1.2.1] — Bugfix Release — 2026-04-05
 
 ### Fixed

@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v13
-const CACHE_NAME = 'cargonavi-v13'; // v13 — !charger out; (fix coords on all Overpass servers)
+// CargoNavi — Service Worker v14
+const CACHE_NAME = 'cargonavi-v14'; // v14 — Nav chat overlay, community markers, !charger fix
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404
