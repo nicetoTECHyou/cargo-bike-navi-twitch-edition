@@ -5530,7 +5530,7 @@ ${trackpoints}        </TrackSegment>
         },
 
         async handleNearestCharger(username, isAdmin) {
-            console.log('[!charger] Triggered by', username, '| GPS:', state.lastGpsLat, state.lastGpsLng);
+            console.log('[!charger v2] Triggered by', username, '| GPS:', state.lastGpsLat, state.lastGpsLng);
 
             // Check GPS position
             if (state.lastGpsLat === null || state.lastGpsLng === null) {
@@ -5620,12 +5620,18 @@ ${trackpoints}        </TrackSegment>
                 let nearest = null;
                 let nearestDist = Infinity;
                 let skippedNoCoords = 0;
+                console.log('[!charger v2] Processing', data.elements.length, 'elements...');
                 for (const el of data.elements) {
                     const tags = el.tags || {};
                     const name = tags['name:de'] || tags['name'] || tags['name:en'] || 'Ladestation';
                     let sLat, sLng;
-                    if (el.type === 'node') { sLat = el.lat; sLng = el.lon; }
-                    else { sLat = el.center?.lat; sLng = el.center?.lon; }
+                    if (el.type === 'node') {
+                        sLat = el.lat;
+                        sLng = el.lon;
+                    } else if (el.center) {
+                        sLat = el.center.lat;
+                        sLng = el.center.lon;
+                    }
                     if (!sLat || !sLng) { skippedNoCoords++; continue; }
 
                     const dist = haversine(lat, lng, sLat, sLng);
@@ -5634,9 +5640,14 @@ ${trackpoints}        </TrackSegment>
                         nearest = { name, lat: sLat, lng: sLng, tags };
                     }
                 }
+                console.log('[!charger v2] Loop done. nearest:', nearest ? nearest.name : 'NULL', '| skipped:', skippedNoCoords);
 
                 if (!nearest) {
-                    console.error('[!charger] All elements skipped! Total:', data.elements.length, '| No coords:', skippedNoCoords, '| First el:', JSON.stringify(data.elements[0]).substr(0, 200));
+                    // Debug: log first element structure so we can see what Overpass returns
+                    if (data.elements.length > 0) {
+                        console.error('[!charger v2] First element keys:', Object.keys(data.elements[0]).join(', '));
+                        console.error('[!charger v2] First element:', JSON.stringify(data.elements[0]).substring(0, 500));
+                    }
                     this.say('❌ @' + username + ' Keine gültige Ladestation gefunden!');
                     return;
                 }

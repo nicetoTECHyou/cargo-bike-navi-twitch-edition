@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v11
-const CACHE_NAME = 'cargonavi-v11'; // v11 — Fix !charger out body tags (coords missing)
+// CargoNavi — Service Worker v12
+const CACHE_NAME = 'cargonavi-v12'; // v12 — !charger v2 debug + robust coord parsing
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404
