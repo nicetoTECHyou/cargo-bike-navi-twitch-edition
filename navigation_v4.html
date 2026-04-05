@@ -701,8 +701,29 @@ html.dark .twitch-action-btn.reject { background:#450a0a; }
 .twitch-approved-item {
     display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:8px;
     background:#f0fdf4; border:1px solid #bbf7d0; margin-bottom:4px;
+    cursor:pointer; transition: all 0.15s;
 }
 html.dark .twitch-approved-item { background:#052e16; border-color:#166534; }
+.twitch-approved-item:hover { border-color:#10b981; }
+.twitch-approved-item.is-finish {
+    background:#fef3c7; border:1px solid #fde68a;
+}
+html.dark .twitch-approved-item.is-finish { background:#422006; border-color:#92400e; }
+.twitch-approved-item.is-via {
+    background:#eff6ff; border:1px solid #bfdbfe;
+}
+html.dark .twitch-approved-item.is-via { background:#172554; border-color:#1e40af; }
+.twitch-route-badge {
+    display:flex; flex-direction:column; align-items:center; gap:2px; flex-shrink:0; min-width:36px;
+}
+.twitch-route-num { width:24px; height:24px; border-radius:50%; background:#10b981; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; flex-shrink:0; }
+.twitch-approved-item.is-finish .twitch-route-num { background:#f59e0b; }
+.twitch-approved-item.is-via .twitch-route-num { background:#3b82f6; }
+.twitch-route-type { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; }
+.twitch-approved-item.is-finish .twitch-route-type { color:#d97706; }
+.twitch-approved-item.is-via .twitch-route-type { color:#2563eb; }
+.twitch-route-dist { font-size:10px; color:#64748b; font-weight:600; white-space:nowrap; flex-shrink:0; }
+html.dark .twitch-route-dist { color:#94a3b8; }
 .twitch-settings-toggle {
     display:flex; align-items:center; justify-content:space-between; padding:10px 0;
     cursor:pointer; border-top:1px solid #e2e8f0; margin-top:8px;
@@ -5450,24 +5471,62 @@ ${trackpoints}        </TrackSegment>
             this.pendingWaypoints = [];
             this.approvedWaypoints = [];
             this.userCounts.clear();
+            // Clear route from map
+            if (map.getSource('route-0')) map.getSource('route-0').setData({ type: 'FeatureCollection', features: [] });
+            document.getElementById('twitch-route-distance').textContent = '—';
+            document.getElementById('twitch-route-time').textContent = '—';
             this.renderPendingQueue();
             this.renderRouteList();
             this.say('🗑️ Community-Route wurde geleert!');
             this.addChatMessage('System', 'Route cleared by ' + username, '#ef4444');
         },
 
+        getDistFromPos(wp) {
+            if (wp.lat && wp.lon && state.lastGpsLat !== null && state.lastGpsLng !== null) {
+                return haversine(state.lastGpsLat, state.lastGpsLng, wp.lat, wp.lon);
+            }
+            return 99999; // Unknown distance — push to end
+        },
+
+        sortAndLabelWaypoints() {
+            // Sort approved waypoints by distance from current position (near → far)
+            this.approvedWaypoints.sort((a, b) => (a.distFromPos || 99999) - (b.distFromPos || 99999));
+            // Label: last = finish, middle = via, single = finish
+            this.approvedWaypoints.forEach((wp, i) => {
+                if (this.approvedWaypoints.length === 1) {
+                    wp.role = 'finish';
+                } else if (i === this.approvedWaypoints.length - 1) {
+                    wp.role = 'finish';
+                } else {
+                    wp.role = 'via';
+                }
+            });
+        },
+
         approveWaypoint(index) {
             if (index < 0 || index >= this.pendingWaypoints.length) return;
             const wp = this.pendingWaypoints.splice(index, 1)[0];
             wp.status = 'approved';
-            wp.routeOrder = this.approvedWaypoints.length;
+            wp.approvedAt = Date.now();
+
+            // Calculate distance from current position
+            wp.distFromPos = this.getDistFromPos(wp);
+
+            // Check if new point is farther than current finish → swap
+            const currentFinish = this.approvedWaypoints.find(w => w.role === 'finish');
+            if (currentFinish && wp.distFromPos > (currentFinish.distFromPos || 0)) {
+                currentFinish.role = 'via';
+            }
+
             this.approvedWaypoints.push(wp);
+            this.sortAndLabelWaypoints();
 
             this.say('✅ @' + wp.username + ' dein Wegpunkt wurde zur Route hinzugefügt!');
             this.addChatMessage('System', '✅ Approved: ' + wp.address + ' (@' + wp.username + ')', '#10b981');
 
             this.renderPendingQueue();
             this.renderRouteList();
+            this.autoCalculateRoute();
         },
 
         rejectWaypoint(index) {
@@ -5477,20 +5536,56 @@ ${trackpoints}        </TrackSegment>
         },
 
         approveAll() {
+            const approved = [];
             while (this.pendingWaypoints.length > 0) {
                 const wp = this.pendingWaypoints.shift();
                 wp.status = 'approved';
-                wp.routeOrder = this.approvedWaypoints.length;
+                wp.approvedAt = Date.now();
+                wp.distFromPos = this.getDistFromPos(wp);
                 this.approvedWaypoints.push(wp);
+                approved.push(wp);
                 this.say('✅ @' + wp.username + ' dein Wegpunkt wurde zur Route hinzugefügt!');
             }
+            this.sortAndLabelWaypoints();
             this.renderPendingQueue();
             this.renderRouteList();
+            this.autoCalculateRoute();
         },
 
         rejectAll() {
             this.pendingWaypoints = [];
             this.renderPendingQueue();
+        },
+
+        setAsFinish(index) {
+            if (index < 0 || index >= this.approvedWaypoints.length) return;
+            const target = this.approvedWaypoints[index];
+            // Remove old finish label
+            this.approvedWaypoints.forEach(wp => { if (wp.role === 'finish') wp.role = 'via'; });
+            // Set new finish
+            target.role = 'finish';
+            // Re-sort so finish is always last
+            this.approvedWaypoints.sort((a, b) => {
+                if (a.role === 'finish') return 1;
+                if (b.role === 'finish') return -1;
+                return (a.distFromPos || 99999) - (b.distFromPos || 99999);
+            });
+            // Re-label
+            this.approvedWaypoints.forEach((wp, i) => {
+                if (this.approvedWaypoints.length === 1) wp.role = 'finish';
+                else if (i === this.approvedWaypoints.length - 1) wp.role = 'finish';
+                else if (wp.role !== 'finish') wp.role = 'via';
+            });
+            this.renderRouteList();
+            this.autoCalculateRoute();
+        },
+
+        removeApproved(index) {
+            if (index < 0 || index >= this.approvedWaypoints.length) return;
+            this.approvedWaypoints.splice(index, 1);
+            this.sortAndLabelWaypoints();
+            this.renderRouteList();
+            this.autoCalculateRoute();
         },
 
         say(message) {
@@ -5569,16 +5664,37 @@ ${trackpoints}        </TrackSegment>
             list.innerHTML = '';
 
             this.approvedWaypoints.forEach((wp, i) => {
+                const isFinish = wp.role === 'finish';
+                const isVia = wp.role === 'via';
+                const roleClass = isFinish ? ' is-finish' : (isVia ? ' is-via' : '');
+                const distStr = (wp.distFromPos && wp.distFromPos < 99999)
+                    ? (wp.distFromPos < 1 ? Math.round(wp.distFromPos * 1000) + 'm' : wp.distFromPos.toFixed(1) + 'km')
+                    : '?';
+                const typeLabel = isFinish ? '🏁 Finish' : (isVia ? '📍 Via' : '📍');
+
                 const item = document.createElement('div');
-                item.className = 'twitch-approved-item';
+                item.className = 'twitch-approved-item' + roleClass;
+                item.title = isFinish ? 'Click to change finish' : 'Click to set as finish';
+                item.onclick = ((idx) => () => { if (!isFinish) this.setAsFinish(idx); })(i);
                 item.innerHTML =
-                    '<div class="twitch-route-num">' + (i + 1) + '</div>' +
+                    '<div class="twitch-route-badge">' +
+                        '<div class="twitch-route-num">' + (i + 1) + '</div>' +
+                        '<div class="twitch-route-type">' + (isFinish ? 'Finish' : 'Via') + '</div>' +
+                    '</div>' +
                     '<div class="twitch-route-info">' +
                         '<div class="twitch-route-name" title="' + escapeXml(wp.address) + '">' + escapeXml(wp.address) + '</div>' +
                         '<div class="twitch-route-user">by @' + escapeXml(wp.username) + '</div>' +
-                    '</div>';
+                    '</div>' +
+                    '<div class="twitch-route-dist">' + distStr + '</div>' +
+                    '<button class="twitch-action-btn reject" onclick="event.stopPropagation();TwitchManager.removeApproved(' + i + ')" title="Remove" style="width:22px;height:22px;font-size:10px;flex-shrink:0;"><i class="fas fa-times"></i></button>';
                 list.appendChild(item);
             });
+        },
+
+        // Debounced auto-calculate — avoids hammering BRouter on rapid approves
+        autoCalculateRoute: function() {
+            clearTimeout(this._autoCalcTimer);
+            this._autoCalcTimer = setTimeout(() => this.calculateCommunityRoute(), 800);
         },
 
         async calculateCommunityRoute() {
@@ -5587,12 +5703,9 @@ ${trackpoints}        </TrackSegment>
                 return;
             }
 
-            showToast(t('calculating'), 'info');
-
-            // Build waypoints from approved list + current GPS position as start
+            // Build coords: GPS pos → approved waypoints in order (near→far, finish last)
             const coords = [];
-            // Use current position or first waypoint as start
-            if (state.lastGpsLat !== null) {
+            if (state.lastGpsLat !== null && state.lastGpsLng !== null) {
                 coords.push(state.lastGpsLng + ',' + state.lastGpsLat);
             }
             this.approvedWaypoints.forEach(wp => {
@@ -5605,6 +5718,8 @@ ${trackpoints}        </TrackSegment>
                 showToast('Not enough valid waypoints with coordinates', 'error');
                 return;
             }
+
+            showToast(t('calculating'), 'info');
 
             const coordStr = coords.join('|');
             const url = 'https://brouter.de/brouter?lonlats=' + coordStr + '&profile=' + state.profile + '&format=geojson&_t=' + Date.now();
@@ -5640,7 +5755,6 @@ ${trackpoints}        </TrackSegment>
                     if (map.getSource('route-0')) {
                         map.getSource('route-0').setData({ type: 'FeatureCollection', features: [feat] });
                     }
-                    // Clear other routes
                     if (map.getSource('route-1')) map.getSource('route-1').setData({ type: 'FeatureCollection', features: [] });
                     if (map.getSource('route-2')) map.getSource('route-2').setData({ type: 'FeatureCollection', features: [] });
 
@@ -5648,7 +5762,8 @@ ${trackpoints}        </TrackSegment>
                     fitMapToRoute(0);
                     document.getElementById('route-info-sidebar').style.display = 'block';
 
-                    this.say('🏁 Community-Route berechnet! ' + distKm + ' km, ' + timeStr + ' — ' + this.approvedWaypoints.length + ' Stopps');
+                    const viaCount = this.approvedWaypoints.filter(w => w.role === 'via').length;
+                    this.say('🏁 Route: ' + distKm + ' km, ' + timeStr + ' — ' + viaCount + ' Via + 1 Finish');
                     this.addChatMessage('System', '🏁 Route calculated: ' + distKm + ' km, ' + timeStr, '#10b981');
                     showToast('Community route calculated!', 'success');
                 }
