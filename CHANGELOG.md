@@ -4,6 +4,22 @@ All notable changes to CargoNavi will be documented in this file.
 
 ---
 
+## [v1.4] — Complete UI Redesign & Theme System — 2026-04-06
+
+### Added
+- **CSS Custom Properties Theme System** — All UI colors now use CSS variables (`--accent`, `--surface`, `--text`, `--border`, etc.) instead of hardcoded hex values. Enables instant theme switching without page reload. Dark mode also uses CSS variables for seamless toggling.
+- **5 Color Themes** — Brand-new theme selector in the sidebar header with 5 color options: **Twitch Purple** (default, `#9146ff`), **Cargo Green** (`#10b981`), **Electric Blue** (`#3b82f6`), **Sunset Orange** (`#f97316`), **Hot Pink** (`#ec4899`). Each theme changes buttons, accents, active states, focus rings, tabs, hover effects, gradients, and glows. Theme selection persists in `localStorage`.
+- **Community Waypoint Markers on Map** — Approved Twitch waypoints now appear as colored markers on the map. Start = green 📍 with "S" badge, Via = blue 📍 with number badge, Finish = amber 🏁 marker. Each marker has hover scale effect (1.15×), click popup with address + username + role, and order number badge.
+
+### Changed
+- **Complete UI Modernization** — Entire CSS redesigned with modern glassmorphism aesthetics: `backdrop-filter: blur(12px)`, semi-transparent overlay backgrounds, accent glow shadows, smooth hover lift animations. Buttons are now 42px with rounded corners and gradient active states. Sidebar widened to 350px with subtle box-shadow. All overlays use consistent glassmorphism styling.
+- **Map Overlay Positions Fixed** — All map overlays repositioned to prevent overlaps: nav instructions (top-center, z-index 15), alt panel (bottom-center, z-index 15), map controls (top-right, z-index 12), view controls (top-right below map controls, z-index 12), speed display (bottom-left, z-index 12), voice controls (bottom-right, z-index 12). View controls moved from hardcoded `right:230px` to `right:70px`.
+- **Nav Chat Overlay Removed** — The navigation chat overlay (last 3 Twitch messages on map) was removed per user request. Twitch chat remains fully accessible in the sidebar.
+- **`!charger` Overpass Query Fix** — Changed from `out tags;` to `out;` to ensure coordinates are returned on all Overpass API servers.
+- **Service Worker** — Cache version bumped to `cargonavi-v15`.
+
+---
+
 ## [v1.3] — Nav Chat Overlay, Community Markers, Charger Fix — 2026-04-06
 
 ### Added

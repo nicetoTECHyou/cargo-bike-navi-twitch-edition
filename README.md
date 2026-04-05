@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚲 CargoNavi Twitch Edition
+# 🚲 CargoNavi
 ### Satellitengestützte Navigation für Lastenräder & Co.
 
 [![PWA](https://img.shields.io/badge/PWA-Ready-green?style=flat-square)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
@@ -10,7 +10,7 @@
 [![GPS](https://img.shields.io/badge/GPS-Realtime-3b82f6?style=flat-square)]()
 [![Twitch](https://img.shields.io/badge/Twitch-Community_Navigation-9146FF?style=flat-square)]()
 [![Tabs](https://img.shields.io/badge/UI-Tabbed_Sidebar-10b981?style=flat-square)]()
-[![Version](https://img.shields.io/badge/Version-1.3-059669?style=flat-square)]()
+[![Version](https://img.shields.io/badge/Version-1.4-9146ff?style=flat-square)]()
 
 **Dein Lastenrad-Navi: Ohne App Store, ohne Backend, ohne Datensammlung und vor allem ohne Kosten.**
 
@@ -103,9 +103,11 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 * **3-Wege Follow Toggle:** Follow-Button dreht durch 3 Modi — **OFF** → **3D Follow** (pitch 60, Kamera hinter Fahrzeug mit Kompass) → **Top-Down Follow** (pitch 0, Vogelperspektive) → **OFF**.
 * **Drone-View:** Eigene Animation-Loop für flüssige 360°-Rotation — funktioniert auch außerhalb der aktiven Navigation. Pitch 70, immediate Visual Feedback beim Einschalten.
 * **GPS-Follow respektiert Ansicht:** Follow-Modus beim normalen GPS-Tracking (ohne Navigation) nutzt den gewählten Pitch/Bearing.
-* **💬 Nav Chat Overlay:** Während der Navigation erscheinen die letzten 3 Twitch-Chat-Nachrichten als halbtransparentes Overlay auf der Karte (unten links). Glasmorphism-Design mit Blur-Effekt, Twitch-Farben der Usernamen, doppelter Text-Schatten für Lesbarkeit auf jeder Karte. System-Nachrichten dezent dargestellt. Erscheint automatisch bei Nav-Start + Twitch-Verbunden, verschwindet bei Nav-Stop oder Disconnect. Blockiert keine Karten-Interaktion (`pointer-events: none`).
 
-### 🌍 System & UI
+### 🎨 Design & Themes
+* **🎨 5 Farb-Themes** — Twitch Purple (Default), Cargo Green, Electric Blue, Sunset Orange, Hot Pink. Theme-Picker in der Sidebar-Header-Leiste. Farb-Auswahl wird in `localStorage` gespeichert und beim nächsten Laden automatisch geladen. Alle UI-Elemente (Buttons, Tabs, Akzente, Hover-Effekte, Glows) ändern sich sofort per CSS Custom Properties.
+* **🪟 Glasmorphism UI** — Moderne, halbtransparente Oberflächen mit `backdrop-filter: blur(12px)`, sanfte Schatten, Hover-Lift-Animationen und Gradient-Akzente. Alle Karten-Overlays nutzen konsistentes Glasmorphism-Design.
+* **CSS Custom Properties** — Vollständiges Theme-System mit 20+ CSS-Variablen für Farben, Ränder, Schatten, Radien und Übergänge. Ermöglicht sofortiges Theme-Switching ohne Neuladen. Dark Mode nutzt dieselben Variablen für nahtloses Umschalten.
 * **Tabbed Sidebar:** 4 organisierte Tabs — Route, Navigate, Twitch, POI — für eine aufgeräumte, fokussierte Oberfläche mit grünem Active-Indicator.
 * **Clean Map View:** Sucheingaben in der Sidebar — Karte zeigt nur Controls, Route, Richtungs-Shortcuts und Navi-Overlays. Keine schwebenden Eingabefelder mehr.
 * **Dark Mode:** Helles und dunkles Theme per Klick umschaltbar — volle Unterstützung in allen UI-Komponenten. Einstellungen persistent via localStorage.
@@ -141,7 +143,7 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 ### 📂 Dateistruktur
 ```text
 CargoNavi/
-├── navigation_v4.html      # Hauptdatei (v1.3)
+├── navigation_v4.html      # Hauptdatei (v1.4)
 ├── navigation_v3.html      # Vorherige Version (Backup)
 ├── manifest.json           # PWA-Manifest
 ├── sw.js                   # Service Worker (Offline-Cache)
@@ -161,6 +163,7 @@ CargoNavi/
 
 | Version | Datum | Beschreibung |
 | :--- | :--- | :--- |
+| **v1.4** | 2026-04-06 | Komplett UI-Redesign, Glasmorphism, 5 Farb-Themes (Twitch Purple, Green, Blue, Orange, Pink), CSS Variables, Overlay-Fixes |
 | **v1.3** | 2026-04-06 | Nav Chat Overlay, Community Wegpunkt-Marker auf Karte, !charger Koordinaten-Fix |
 | **v1.2.1** | 2026-04-05 | Bugfix: Glyphs Console-Spam, Overpass 504 Timeout, Profil-Fallback Fix |
 | **v1.2** | 2026-04-05 | Auto-Approve, Follow/Drone View Fix, !charger Command, BRouter Fallback, Zeit-Schätzung, GPS Nav Fix, Cache-Busting |
