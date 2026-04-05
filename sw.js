@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v12
-const CACHE_NAME = 'cargonavi-v12'; // v12 — !charger v2 debug + robust coord parsing
+// CargoNavi — Service Worker v13
+const CACHE_NAME = 'cargonavi-v13'; // v13 — !charger out; (fix coords on all Overpass servers)
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404

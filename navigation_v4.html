@@ -5573,7 +5573,7 @@ ${trackpoints}        </TrackSegment>
                     const query = `
                         [out:json][timeout:10];
                         node["amenity"="charging_station"](around:${radius},${lat},${lng});
-                        out body tags;
+                        out;
                     `;
                     for (const endpoint of overpassEndpoints) {
                         try {
