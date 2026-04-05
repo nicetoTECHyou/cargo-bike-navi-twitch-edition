@@ -5138,8 +5138,18 @@ ${trackpoints}        </TrackSegment>
             'f4ck','f u c k','s h i t','b!tch','@$$','f***','sh*t','a$$'],
         check(text) {
             if (!text) return false;
-            const lower = text.toLowerCase().replace(/[^a-zA-Z0-9]/g,'');
-            return this.badWords.some(w => lower.includes(w.replace(/[^a-z0-9]/g,'')));
+            const lower = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+            const words = lower.split(/\s+/);
+            return this.badWords.some(bw => {
+                const clean = bw.replace(/[^a-z0-9]/g, '');
+                if (!clean || clean.length < 2) return false;
+                // Multi-segment words (e.g. "s h i t", "f u c k") — check concatenated text
+                if (bw.includes(' ')) {
+                    return words.join('').includes(clean);
+                }
+                // Single words — match at word START to catch "asshole" but NOT "Kassel"
+                return words.some(w => w.startsWith(clean));
+            });
         }
     };
 
