@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v16
-const CACHE_NAME = 'cargonavi-v16'; // v16 — Nav chat overlay, toast reposition, overlay fixes
+// CargoNavi — Service Worker v17
+const CACHE_NAME = 'cargonavi-v17'; // v17 — Nav chat overlay shows whenever Twitch connected
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404

@@ -1894,7 +1894,6 @@ html.dark .twitch-route-user { color:var(--text-muted); }
     let navChatMessages = [];
 
     function updateNavChatOverlay(username, text, userColor) {
-        if (!state.isNavigating) return;
         navChatMessages.push({ username, text, userColor });
         if (navChatMessages.length > 3) navChatMessages.shift();
         renderNavChatOverlay();
@@ -1919,7 +1918,7 @@ html.dark .twitch-route-user { color:var(--text-muted); }
     function updateNavChatVisibility() {
         const el = document.getElementById('nav-chat-overlay');
         if (!el) return;
-        if (state.isNavigating && TwitchManager.connected) {
+        if (TwitchManager.connected) {
             el.classList.add('visible');
         } else {
             el.classList.remove('visible');
