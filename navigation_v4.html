@@ -35,7 +35,7 @@
         }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-    <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/dist/tmi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tmi.js@1.9.0-pre.1/dist/tmi.min.js"></script>
     <style>
         /* ============================================ */
         /* BASE LAYOUT                                  */
@@ -5229,6 +5229,11 @@ ${trackpoints}        </TrackSegment>
             this.saveCredentials();
             if (!this.channel || !this.token || !this.botName) {
                 showToast('Please fill in all connection fields', 'error');
+                return;
+            }
+            if (typeof tmi === 'undefined') {
+                showToast('Twitch library failed to load. Check your internet connection and reload the page.', 'error');
+                console.error('tmi.js not loaded — CDN script may have been blocked or failed.');
                 return;
             }
             const opts = {
