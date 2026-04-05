@@ -5747,11 +5747,9 @@ ${trackpoints}        </TrackSegment>
             const estTimeMin = Math.round((estDistKm / avgKmh) * 60);
             const estTimeStr = estTimeMin < 60 ? estTimeMin + ' min' : Math.floor(estTimeMin/60) + 'h ' + (estTimeMin%60) + 'm';
 
-            // Only update if no BRouter-calculated route exists (don't overwrite precise values)
-            if (!state.routes || state.routes.length === 0) {
-                document.getElementById('twitch-route-distance').textContent = estDistKm.toFixed(1);
-                document.getElementById('twitch-route-time').textContent = '~' + estTimeStr;
-            }
+            // Always show estimates as baseline (BRouter overwrites on success)
+            document.getElementById('twitch-route-distance').textContent = estDistKm.toFixed(1);
+            document.getElementById('twitch-route-time').textContent = '~' + estTimeStr;
 
             list.innerHTML = '';
 
@@ -5852,8 +5850,19 @@ ${trackpoints}        </TrackSegment>
                 const feat = data.features[0];
                 const props = feat.properties || {};
                 const distance = props['track-length'] || 0;
-                const timeMs = props['total-time'] || 0;
+                let timeMs = props['total-time'] || 0;
                 const distKm = (distance / 1000).toFixed(1);
+                // Sanity check: BRouter sometimes returns time in seconds instead of ms
+                if (timeMs > 0 && timeMs < 60000) {
+                    timeMs = timeMs * 1000;
+                }
+                // Fallback estimate if time is missing or absurdly low for the distance
+                const avgSpeeds = { fastbike:30, trekking:20, mtb:18, safety:15, 'car-fast':90, 'car-eco':70, walk:5 };
+                const avgKmh = avgSpeeds[state.profile] || 20;
+                const minExpectedMs = (distance / 1000) / avgKmh * 3600000 * 0.3;
+                if (!timeMs || (minExpectedMs > 0 && timeMs < minExpectedMs)) {
+                    timeMs = (distance / 1000) / avgKmh * 3600000;
+                }
                 const timeMin = Math.round(timeMs / 60000);
                 const timeStr = timeMin < 60 ? timeMin + ' min' : Math.floor(timeMin/60) + 'h ' + (timeMin%60) + 'm';
 
