@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v1
-const CACHE_NAME = 'cargonavi-v1'; // v1.0 — Initial release (tabs + twitch + all features)
+// CargoNavi — Service Worker v2
+const CACHE_NAME = 'cargonavi-v2'; // v2 — Auto-approve + profile fallback + bug fixes
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404
