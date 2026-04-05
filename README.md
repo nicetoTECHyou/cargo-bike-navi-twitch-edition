@@ -10,7 +10,7 @@
 [![GPS](https://img.shields.io/badge/GPS-Realtime-3b82f6?style=flat-square)]()
 [![Twitch](https://img.shields.io/badge/Twitch-Community_Navigation-9146FF?style=flat-square)]()
 [![Tabs](https://img.shields.io/badge/UI-Tabbed_Sidebar-10b981?style=flat-square)]()
-[![Version](https://img.shields.io/badge/Version-1.2-059669?style=flat-square)]()
+[![Version](https://img.shields.io/badge/Version-1.2.1-059669?style=flat-square)]()
 
 **Dein Lastenrad-Navi: Ohne App Store, ohne Backend, ohne Datensammlung und vor allem ohne Kosten.**
 
@@ -139,7 +139,7 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 ### 📂 Dateistruktur
 ```text
 CargoNavi/
-├── navigation_v4.html      # Hauptdatei (v1.2)
+├── navigation_v4.html      # Hauptdatei (v1.2.1)
 ├── navigation_v3.html      # Vorherige Version (Backup)
 ├── manifest.json           # PWA-Manifest
 ├── sw.js                   # Service Worker (Offline-Cache)
@@ -159,6 +159,7 @@ CargoNavi/
 
 | Version | Datum | Beschreibung |
 | :--- | :--- | :--- |
+| **v1.2.1** | 2026-04-05 | Bugfix: Glyphs Console-Spam, Overpass 504 Timeout, Profil-Fallback Fix |
 | **v1.2** | 2026-04-05 | Auto-Approve, Follow/Drone View Fix, !charger Command, BRouter Fallback, Zeit-Schätzung, GPS Nav Fix, Cache-Busting |
 | **v1.1** | 2026-04-05 | Smart Auto-Routing (nah→fern Sortierung, VIA/Finish Logik, Auto-Recalculate), Twitch Bugfixes (Chat-Display, Commands, ContentFilter) |
 | **v1.0** | 2026-04-05 | Erste offizielle Veröffentlichung. GPS-Navigation, Sprachansagen, Twitch-Integration, Tabbed Sidebar, POIs, Export |

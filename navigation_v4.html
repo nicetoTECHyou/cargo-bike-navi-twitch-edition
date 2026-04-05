@@ -2270,20 +2270,8 @@ html.dark .twitch-route-user { color:#94a3b8; }
                 'circle-stroke-color': '#ffffff',
             }
         });
-        // Symbol layer for 📸 emoji on top of circles
-        map.addLayer({
-            id: 'tourist-attractions-labels',
-            type: 'symbol',
-            source: 'tourist-attractions',
-            layout: {
-                'text-field': '📸',
-                'text-size': 14,
-                'text-allow-overlap': true,
-                'text-ignore-placement': true,
-                'text-anchor': 'center',
-                'text-offset': [0, 0],
-            }
-        });
+        // NOTE: Symbol layer removed — glyph source doesn't support emoji.
+        // Purple circles already serve as tourist attraction indicators.
 
         // Tourist attraction popups (circles + labels — both clickable)
         function touristPopupHandler(e) {
@@ -2296,7 +2284,6 @@ html.dark .twitch-route-user { color:#94a3b8; }
                 .addTo(map);
         }
         map.on('click', 'tourist-attractions-circles', touristPopupHandler);
-        map.on('click', 'tourist-attractions-labels', touristPopupHandler);
 
         // Charging station popups
         map.on('click', 'charging-stations-circles', (e) => {
@@ -5552,46 +5539,56 @@ ${trackpoints}        </TrackSegment>
                 // Search Overpass for nearest charging stations around GPS position (5km radius)
                 const lat = state.lastGpsLat;
                 const lng = state.lastGpsLng;
-                const radius = 5000; // 5km
-                const query = `
-                    [out:json][timeout:15];
-                    (
-                        node["amenity"="charging_station"](around:${radius},${lat},${lng});
-                        way["amenity"="charging_station"](around:${radius},${lat},${lng});
-                        relation["amenity"="charging_station"](around:${radius},${lat},${lng});
-                    );
-                    out center tags;
-                `;
+                // Overpass query — nodes only (99% of chargers), try 3km then 5km
                 const overpassEndpoints = [
                     'https://overpass-api.de/api/interpreter',
                     'https://overpass.kumi.systems/api/interpreter',
                     'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
                 ];
                 let data = null;
-                for (const endpoint of overpassEndpoints) {
-                    try {
-                        console.log('[!charger] Trying', endpoint);
-                        const resp = await fetch(endpoint, {
-                            method: 'POST',
-                            body: 'data=' + encodeURIComponent(query),
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        });
-                        if (!resp.ok) {
-                            console.warn('[!charger]', endpoint, '→ HTTP', resp.status);
+                for (const radius of [3000, 5000]) {
+                    const query = `
+                        [out:json][timeout:10];
+                        node["amenity"="charging_station"](around:${radius},${lat},${lng});
+                        out tags;
+                    `;
+                    for (const endpoint of overpassEndpoints) {
+                        try {
+                            console.log('[!charger] Trying', endpoint, 'radius:', radius);
+                            const controller = new AbortController();
+                            const timeout = setTimeout(() => controller.abort(), 10000);
+                            const resp = await fetch(endpoint, {
+                                method: 'POST',
+                                body: 'data=' + encodeURIComponent(query),
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                signal: controller.signal,
+                            });
+                            clearTimeout(timeout);
+                            if (!resp.ok) {
+                                console.warn('[!charger]', endpoint, '→ HTTP', resp.status);
+                                continue;
+                            }
+                            data = await resp.json();
+                            if (data && data.elements && data.elements.length > 0) {
+                                console.log('[!charger] Found', data.elements.length, 'chargers at', endpoint);
+                                break;
+                            }
+                            data = null;
+                        } catch(e) {
+                            if (e.name === 'AbortError') {
+                                console.warn('[!charger]', endpoint, '→ timeout (10s)');
+                            } else {
+                                console.warn('[!charger]', endpoint, '→ error:', e.message);
+                            }
                             continue;
                         }
-                        data = await resp.json();
-                        if (data && data.elements && data.elements.length > 0) break;
-                        data = null;
-                    } catch(e) {
-                        console.warn('[!charger]', endpoint, '→ error:', e.message);
-                        continue;
                     }
+                    if (data) break; // Found chargers, no need to try larger radius
                 }
 
                 if (!data || !data.elements || data.elements.length === 0) {
-                    this.say('❌ @' + username + ' Keine Ladestation in 5km Umkreis gefunden!');
-                    this.addChatMessage('System', '❌ No charger found within 5km', '#ef4444');
+                    this.say('❌ @' + username + ' Keine Ladestation in 5km Umkreis gefunden (alle Server timeout)!');
+                    this.addChatMessage('System', '❌ No charger found within 5km (all servers timed out)', '#ef4444');
                     showToast('No charging station within 5km', 'error');
                     return;
                 }
@@ -5961,7 +5958,7 @@ ${trackpoints}        </TrackSegment>
             const coordStr = coords.join('|');
             // Try primary profile first, then fallback profiles on failure
             const fallbackProfiles = ['trekking', 'car-fast', 'car-eco'];
-            const triedProfiles = [state.profile];
+            const triedProfiles = [];
             let data = null;
             let usedProfile = state.profile;
 

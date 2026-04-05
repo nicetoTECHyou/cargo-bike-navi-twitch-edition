@@ -4,6 +4,18 @@ All notable changes to CargoNavi will be documented in this file.
 
 ---
 
+## [v1.2.1] — Bugfix Release — 2026-04-05
+
+### Fixed
+- **tourist-attractions-labels Glyphs Error (console spam)** — The symbol layer used `text-field: '📸'` emoji, but the map's glyph source (`demotiles.maplibre.org`) only supports basic Latin characters. This caused a validation error on **every single render frame** (~60× per second), flooding the console with red errors and degrading performance. Removed the broken symbol label layer. Purple circles already serve as clear tourist attraction indicators, and popups show details on click.
+- **Overpass API 504 Gateway Timeout for `!charger`** — The `!charger` command queried nodes, ways, AND relations with a 15-second timeout — far too heavy for Overpass, which frequently returned 504. Fixed with: (1) nodes-only query (99% of charging stations are nodes), (2) `AbortController` with 10-second per-request timeout, (3) stepped radius search (3km first, 5km fallback), (4) all 3 Overpass endpoints tried per radius. Also added the 2 new Overpass endpoints to the Service Worker skip-list so they're never cached.
+- **Profile Fallback Skipped Primary Profile** — `triedProfiles` was pre-filled with `[state.profile]` before the loop, so when `attempt === 0` picked `state.profile`, the `includes()` check skipped it immediately. The selected routing profile was never actually tried — it went straight to fallbacks. Fixed by initializing `triedProfiles` as empty array `[]`.
+
+### Changed
+- **Service Worker** — Cache version bumped from `cargonavi-v8` to `cargonavi-v9`. Added `overpass.kumi.systems` and `maps.mail.ru` to the network-only skip-list.
+
+---
+
 ## [v1.2] — Auto-Approve, View Fixes, !charger & Route Reliability — 2026-04-05
 
 ### Added
@@ -29,7 +41,7 @@ All notable changes to CargoNavi will be documented in this file.
 - **`toggleDroneView()`** — Added immediate visual transition (pitch=70, zoom=17) and dedicated rotation loop.
 - **Camera follow code in GPS/Demo navigation** — Both `updateNavigation()` and `animateNavigation()` now respect `state.followPitch` for follow mode. Drone mode delegates rotation to its own loop and only re-centers the map.
 - **GPS-only follow mode** — `onGpsPositionUpdate()` now also respects follow pitch and drone state when centering the map.
-- **Service Worker** — Cache version bumped from `cargonavi-v1` to `cargonavi-v6`.
+- **Service Worker** — Cache version bumped from `cargonavi-v1` to `cargonavi-v9`.
 
 ---
 

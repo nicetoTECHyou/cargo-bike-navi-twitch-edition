@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v8
-const CACHE_NAME = 'cargonavi-v8'; // v8 — Overpass fallback + glyphs fix + onMapClick fix
+// CargoNavi — Service Worker v9
+const CACHE_NAME = 'cargonavi-v9'; // v9 — glyphs fix, Overpass timeout fix, profile fallback fix
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404
@@ -49,6 +49,8 @@ self.addEventListener('fetch', event => {
         url.hostname.includes('routing.openstreetmap.de') ||
         url.hostname.includes('nominatim.openstreetmap.org') ||
         url.hostname.includes('overpass-api.de') ||
+        url.hostname.includes('overpass.kumi.systems') ||
+        url.hostname.includes('maps.mail.ru') ||
         url.hostname.includes('tile.openstreetmap.org') ||
         url.hostname.includes('server.arcgisonline.com') ||
         url.hostname.includes('services.arcgisonline.com')) {
