@@ -5744,54 +5744,82 @@ ${trackpoints}        </TrackSegment>
             showToast(t('calculating'), 'info');
 
             const coordStr = coords.join('|');
-            const url = 'https://brouter.de/brouter?lonlats=' + coordStr + '&profile=' + state.profile + '&format=geojson&_t=' + Date.now();
+            // Try primary profile first, then fallback profiles on failure
+            const fallbackProfiles = ['trekking', 'car-fast', 'car-eco'];
+            const triedProfiles = [state.profile];
+            let data = null;
+            let usedProfile = state.profile;
+
+            for (let attempt = 0; attempt <= fallbackProfiles.length; attempt++) {
+                const prof = attempt === 0 ? state.profile : fallbackProfiles[attempt - 1];
+                if (triedProfiles.includes(prof)) continue;
+                triedProfiles.push(prof);
+
+                const url = 'https://brouter.de/brouter?lonlats=' + coordStr + '&profile=' + prof + '&alternativeidx=0&format=geojson&_t=' + Date.now();
+                try {
+                    const resp = await fetch(url);
+                    if (!resp.ok) {
+                        console.warn('BRouter 500 for profile ' + prof + ', trying fallback...');
+                        continue;
+                    }
+                    data = await resp.json();
+                    if (data.features && data.features.length > 0) {
+                        usedProfile = prof;
+                        break;
+                    }
+                    data = null;
+                } catch(e) {
+                    console.warn('BRouter error for profile ' + prof + ':', e.message);
+                    continue;
+                }
+            }
 
             try {
-                const resp = await fetch(url);
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                const data = await resp.json();
-
-                if (data.features && data.features.length > 0) {
-                    const feat = data.features[0];
-                    const props = feat.properties || {};
-                    const distance = props['track-length'] || 0;
-                    const timeMs = props['total-time'] || 0;
-                    const distKm = (distance / 1000).toFixed(1);
-                    const timeMin = Math.round(timeMs / 60000);
-                    const timeStr = timeMin < 60 ? timeMin + ' min' : Math.floor(timeMin/60) + 'h ' + (timeMin%60) + 'm';
-
-                    document.getElementById('twitch-route-distance').textContent = distKm;
-                    document.getElementById('twitch-route-time').textContent = timeStr;
-
-                    // Load route into map
-                    state.routes = [{
-                        geojson: feat,
-                        distance: distance,
-                        time: timeMs,
-                        ascend: props['ascend'] || 0,
-                        descend: props['descend'] || 0,
-                        color: '#10b981',
-                    }];
-                    state.activeRouteIndex = 0;
-
-                    if (map.getSource('route-0')) {
-                        map.getSource('route-0').setData({ type: 'FeatureCollection', features: [feat] });
-                    }
-                    if (map.getSource('route-1')) map.getSource('route-1').setData({ type: 'FeatureCollection', features: [] });
-                    if (map.getSource('route-2')) map.getSource('route-2').setData({ type: 'FeatureCollection', features: [] });
-
-                    updateRouteInfo();
-                    fitMapToRoute(0);
-                    document.getElementById('route-info-sidebar').style.display = 'block';
-
-                    const viaCount = this.approvedWaypoints.filter(w => w.role === 'via').length;
-                    this.say('🏁 Route: ' + distKm + ' km, ' + timeStr + ' — ' + viaCount + ' Via + 1 Finish');
-                    this.addChatMessage('System', '🏁 Route calculated: ' + distKm + ' km, ' + timeStr, '#10b981');
-                    showToast('Community route calculated!', 'success');
+                if (!data || !data.features || data.features.length === 0) {
+                    throw new Error('All routing profiles failed (tried: ' + triedProfiles.join(', ') + ')');
                 }
+
+                const feat = data.features[0];
+                const props = feat.properties || {};
+                const distance = props['track-length'] || 0;
+                const timeMs = props['total-time'] || 0;
+                const distKm = (distance / 1000).toFixed(1);
+                const timeMin = Math.round(timeMs / 60000);
+                const timeStr = timeMin < 60 ? timeMin + ' min' : Math.floor(timeMin/60) + 'h ' + (timeMin%60) + 'm';
+
+                document.getElementById('twitch-route-distance').textContent = distKm;
+                document.getElementById('twitch-route-time').textContent = timeStr;
+
+                // Load route into map
+                state.routes = [{
+                    geojson: feat,
+                    distance: distance,
+                    time: timeMs,
+                    ascend: props['ascend'] || 0,
+                    descend: props['descend'] || 0,
+                    color: '#10b981',
+                }];
+                state.activeRouteIndex = 0;
+
+                if (map.getSource('route-0')) {
+                    map.getSource('route-0').setData({ type: 'FeatureCollection', features: [feat] });
+                }
+                if (map.getSource('route-1')) map.getSource('route-1').setData({ type: 'FeatureCollection', features: [] });
+                if (map.getSource('route-2')) map.getSource('route-2').setData({ type: 'FeatureCollection', features: [] });
+
+                updateRouteInfo();
+                fitMapToRoute(0);
+                document.getElementById('route-info-sidebar').style.display = 'block';
+
+                const viaCount = this.approvedWaypoints.filter(w => w.role === 'via').length;
+                const profileNote = usedProfile !== state.profile ? ' (fallback: ' + usedProfile + ')' : '';
+                this.say('🏁 Route: ' + distKm + ' km, ' + timeStr + ' — ' + viaCount + ' Via + 1 Finish');
+                this.addChatMessage('System', '🏁 Route calculated: ' + distKm + ' km, ' + timeStr + profileNote, '#10b981');
+                showToast('Community route calculated!' + profileNote, 'success');
             } catch(e) {
                 console.error('Community route error:', e);
-                showToast('Route calculation failed', 'error');
+                showToast('Route failed: ' + e.message, 'error');
+                this.addChatMessage('System', '❌ Route error: ' + e.message, '#ef4444');
             }
         },
 
