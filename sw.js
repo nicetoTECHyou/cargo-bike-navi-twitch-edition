@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v2
-const CACHE_NAME = 'cargonavi-v2'; // v2 — Auto-approve + profile fallback + bug fixes
+// CargoNavi — Service Worker v3
+const CACHE_NAME = 'cargonavi-v3'; // v3 — Fixed follow/drone view + route fallback
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404

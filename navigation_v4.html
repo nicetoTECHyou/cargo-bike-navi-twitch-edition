@@ -4050,18 +4050,18 @@ html.dark .twitch-route-user { color:#94a3b8; }
 
         // Camera follow
         if (state.isFollowing) {
-            let camBearing = state.lastGpsHeading || 0;
-            let camPitch = 60;
             if (state.isDroneView) {
-                state.droneRotation += 0.3;
-                camBearing = state.droneRotation % 360;
-                camPitch = 70;
+                // Drone rotation is handled by its own requestAnimationFrame loop
+                map.jumpTo({ center: [longitude, latitude] });
+            } else {
+                let camBearing = state.lastGpsHeading || 0;
+                let camPitch = state.followPitch !== undefined && state.followPitch !== null ? state.followPitch : 60;
+                map.jumpTo({
+                    center: [longitude, latitude],
+                    bearing: camPitch === 0 ? 0 : camBearing,
+                    pitch: camPitch,
+                });
             }
-            map.jumpTo({
-                center: [longitude, latitude],
-                bearing: camBearing,
-                pitch: camPitch,
-            });
         }
     }
 
@@ -4266,21 +4266,20 @@ html.dark .twitch-route-user { color:#94a3b8; }
 
         // Camera follow
         if (state.isFollowing) {
-            let camBearing = bearing;
-            let camPitch = 60;
-
             if (state.isDroneView) {
-                state.droneRotation += 0.3;
-                camBearing = state.droneRotation % 360;
-                camPitch = 70;
-            }
+                // Drone rotation handled by its own rAF loop
+                map.jumpTo({ center: [lng, lat] });
+            } else {
+                let camBearing = bearing;
+                let camPitch = state.followPitch !== undefined && state.followPitch !== null ? state.followPitch : 60;
 
-            // Use jumpTo instead of easeTo to avoid overlapping animation queue freeze
-            map.jumpTo({
-                center: [lng, lat],
-                bearing: camBearing,
-                pitch: camPitch,
-            });
+                // Use jumpTo instead of easeTo to avoid overlapping animation queue freeze
+                map.jumpTo({
+                    center: [lng, lat],
+                    bearing: camPitch === 0 ? 0 : camBearing,
+                    pitch: camPitch,
+                });
+            }
         }
 
         // Advance progress
@@ -4518,32 +4517,71 @@ html.dark .twitch-route-user { color:#94a3b8; }
     // ============================================
     // VIEW MODES
     // ============================================
+    // Follow view: cycles through 3 modes → OFF → 3D Follow (pitch 60, behind vehicle) → Top-Down Follow (pitch 0) → OFF
     function toggleFollowView() {
-        state.isFollowing = !state.isFollowing;
         state.isDroneView = false;
-
-        document.getElementById('follow-btn').classList.toggle('active', state.isFollowing);
         document.getElementById('drone-btn').classList.remove('active');
 
         if (!state.isFollowing) {
+            // OFF → 3D Follow
+            state.isFollowing = true;
+            state.followPitch = 60;
+            document.getElementById('follow-btn').classList.add('active');
+            if (state.lastGpsLat !== null && state.lastGpsLng !== null) {
+                map.easeTo({ center:[state.lastGpsLng, state.lastGpsLat], pitch:60, bearing:state.lastGpsHeading||0, zoom:17, duration:800 });
+            }
+            showToast(t('follow_on'), 'info');
+        } else if (state.followPitch !== 0) {
+            // 3D Follow → Top-Down Follow
+            state.followPitch = 0;
+            if (state.lastGpsLat !== null && state.lastGpsLng !== null) {
+                map.easeTo({ center:[state.lastGpsLng, state.lastGpsLat], pitch:0, bearing:0, zoom:17, duration:800 });
+            }
+            showToast('📍 Top-Down Follow', 'info');
+        } else {
+            // Top-Down Follow → OFF
+            state.isFollowing = false;
+            state.followPitch = null;
+            document.getElementById('follow-btn').classList.remove('active');
             map.easeTo({ pitch:0, bearing:0, duration:800 });
+            showToast(t('follow_off'), 'info');
         }
-
-        showToast(state.isFollowing ? t('follow_on') : t('follow_off'), 'info');
     }
 
     function toggleDroneView() {
         state.isDroneView = !state.isDroneView;
         state.isFollowing = state.isDroneView;
+        state.droneRotation = map.getBearing() || 0;
 
         document.getElementById('drone-btn').classList.toggle('active', state.isDroneView);
         document.getElementById('follow-btn').classList.toggle('active', state.isDroneView);
 
-        if (!state.isDroneView) {
+        if (state.isDroneView) {
+            // Immediately enter drone view with pitch + start rotation
+            if (state.lastGpsLat !== null && state.lastGpsLng !== null) {
+                map.easeTo({ center:[state.lastGpsLng, state.lastGpsLat], pitch:70, zoom:17, duration:800 });
+            }
+            startDroneRotation();
+        } else {
+            stopDroneRotation();
             map.easeTo({ pitch:0, bearing:0, duration:800 });
         }
 
         showToast(state.isDroneView ? t('drone_on') : t('drone_off'), 'info');
+    }
+
+    let _droneRotationId = null;
+    function startDroneRotation() {
+        stopDroneRotation();
+        (function rotate() {
+            if (!state.isDroneView) return;
+            state.droneRotation += 0.3;
+            map.easeTo({ bearing: state.droneRotation % 360, duration:50, easing: t => t });
+            _droneRotationId = requestAnimationFrame(rotate);
+        })();
+    }
+    function stopDroneRotation() {
+        if (_droneRotationId) { cancelAnimationFrame(_droneRotationId); _droneRotationId = null; }
     }
 
     // ============================================
@@ -4722,12 +4760,20 @@ html.dark .twitch-route-user { color:#94a3b8; }
 
         // Follow mode: center map on position
         if (state.gpsFollowMode) {
-            const currentZoom = map.getZoom();
-            map.easeTo({
-                center: [longitude, latitude],
-                zoom: Math.max(currentZoom, 15),
-                duration: 800
-            });
+            if (state.isDroneView) {
+                // Drone centering only — rotation handled by its own rAF loop
+                map.jumpTo({ center: [longitude, latitude] });
+            } else {
+                const currentZoom = map.getZoom();
+                const camPitch = state.followPitch !== undefined && state.followPitch !== null ? state.followPitch : 0;
+                map.easeTo({
+                    center: [longitude, latitude],
+                    zoom: Math.max(currentZoom, 15),
+                    pitch: camPitch,
+                    bearing: camPitch === 0 ? 0 : (state.lastGpsHeading || 0),
+                    duration: 800
+                });
+            }
         }
     }
 
