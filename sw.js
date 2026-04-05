@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v15
-const CACHE_NAME = 'cargonavi-v15'; // v15 — Complete UI redesign with theme system
+// CargoNavi — Service Worker v16
+const CACHE_NAME = 'cargonavi-v16'; // v16 — Nav chat overlay, toast reposition, overlay fixes
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404

@@ -412,8 +412,9 @@
         /* TOAST NOTIFICATIONS                          */
         /* ============================================ */
         #toast-container {
-            position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:1000;
+            position:fixed; top:14px; left:70px; transform:none; z-index:1000;
             display:flex; flex-direction:column; gap:8px; pointer-events:none;
+            align-items:flex-start; max-width:calc(100vw - 160px);
         }
         .toast {
             padding:10px 20px; border-radius:10px; font-size:13px; font-weight:600;
@@ -424,6 +425,25 @@
         .toast.error { background:#ef4444; }
         .toast.info { background:#3b82f6; }
         @keyframes toastIn { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+
+        /* ============================================ */
+        /* NAV CHAT OVERLAY (Twitch messages on map)     */
+        /* ============================================ */
+        #nav-chat-overlay {
+            position:absolute; bottom:80px; left:14px; z-index:13;
+            width:280px; max-height:120px; overflow:hidden;
+            background:rgba(0,0,0,0.65); border-radius:12px; padding:8px 10px;
+            backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1);
+            display:none; pointer-events:none;
+        }
+        #nav-chat-overlay.visible { display:block; }
+        .nav-chat-msg {
+            font-size:12px; color:#e2e8f0; margin-bottom:3px; line-height:1.3;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.5);
+        }
+        .nav-chat-msg:last-child { margin-bottom:0; }
+        .nav-chat-name { font-weight:700; }
 
         /* ============================================ */
         /* NAV INSTRUCTIONS                             */
@@ -545,6 +565,8 @@
             #view-controls { right:14px !important; }
             .mobile-toggle { display:flex !important; }
             .sidebar-close-btn { display:flex !important; }
+            #nav-chat-overlay { width:200px; bottom:70px; font-size:11px; }
+            #toast-container { left:60px; max-width:calc(100vw - 120px); }
         }
         .mobile-toggle { display:none; }
         .sidebar-close-btn {
@@ -1388,6 +1410,11 @@ html.dark .twitch-route-user { color:var(--text-muted); }
             <div class="speed-unit">km/h</div>
         </div>
 
+        <!-- Nav Chat Overlay (Twitch messages during navigation) -->
+        <div id="nav-chat-overlay">
+            <div class="nav-chat-msg" id="nav-chat-placeholder" style="color:#64748b;"><i class="fab fa-twitch" style="margin-right:4px;"></i>Waiting for chat...</div>
+        </div>
+
         <!-- Navigation Instructions -->
         <div id="nav-instructions">
             <div class="nav-instr-icon" id="nav-icon"><i class="fas fa-arrow-up"></i></div>
@@ -1413,7 +1440,7 @@ html.dark .twitch-route-user { color:var(--text-muted); }
         </div>
 
         <!-- POI Legend -->
-        <div id="poi-legend" style="display:none;position:absolute;bottom:14px;right:14px;z-index:10;background:rgba(255,255,255,0.95);border-radius:10px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,0.1);backdrop-filter:blur(8px);font-size:11px;">
+        <div id="poi-legend" style="display:none;position:absolute;bottom:70px;right:14px;z-index:10;background:rgba(255,255,255,0.95);border-radius:10px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,0.1);backdrop-filter:blur(8px);font-size:11px;">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
                 <div style="width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div>
                 <span style="color:#475569;font-weight:600;">⚡ <span data-i18n="legend_charging">EV Charging</span></span>
@@ -1708,7 +1735,7 @@ html.dark .twitch-route-user { color:var(--text-muted); }
             'twitch.channel': { de:'Kanal', en:'Channel' },
             'twitch.botName': { de:'Bot-Name', en:'Bot Name' },
             'twitch.token': { de:'OAuth Token', en:'OAuth Token' },
-            'twitch.tokenHint': { de:'Token wird lokal verschlüsselt gespeichert. Erstelle deinen auf twitchapps.com/tmi', en:'Token is stored encrypted locally. Get yours at twitchapps.com/tmi' },
+            'twitch.tokenHint': { de:'Token wird lokal verschlüsselt gespeichert. Erstelle deinen auf twitchtokengenerator.com', en:'Token is stored encrypted locally. Get yours at twitchtokengenerator.com' },
             'twitch.autoConnect': { de:'Auto-Verbinden', en:'Auto-Connect' },
             'twitch.chat': { de:'Chat', en:'Chat' },
             'twitch.noMessages': { de:'Noch keine Nachrichten', en:'No messages yet' },
@@ -1862,6 +1889,42 @@ html.dark .twitch-route-user { color:var(--text-muted); }
 
     const ROUTE_COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
     const ROUTE_COLORS_ALT = ['#059669', '#2563eb', '#d97706'];
+
+    // Nav Chat Overlay — stores last 3 Twitch messages for map overlay
+    let navChatMessages = [];
+
+    function updateNavChatOverlay(username, text, userColor) {
+        if (!state.isNavigating) return;
+        navChatMessages.push({ username, text, userColor });
+        if (navChatMessages.length > 3) navChatMessages.shift();
+        renderNavChatOverlay();
+    }
+
+    function renderNavChatOverlay() {
+        const el = document.getElementById('nav-chat-overlay');
+        if (!el) return;
+        // Remove placeholder if present
+        const ph = document.getElementById('nav-chat-placeholder');
+        if (ph) ph.remove();
+        // Rebuild content
+        el.innerHTML = '';
+        navChatMessages.forEach(m => {
+            const div = document.createElement('div');
+            div.className = 'nav-chat-msg';
+            div.innerHTML = `<span class="nav-chat-name" style="color:${m.userColor}">${m.username}</span>: ${m.text}`;
+            el.appendChild(div);
+        });
+    }
+
+    function updateNavChatVisibility() {
+        const el = document.getElementById('nav-chat-overlay');
+        if (!el) return;
+        if (state.isNavigating && TwitchManager.connected) {
+            el.classList.add('visible');
+        } else {
+            el.classList.remove('visible');
+        }
+    }
 
     let map = null;
     let vehicleMarker = null;
@@ -4021,6 +4084,9 @@ html.dark .twitch-route-user { color:var(--text-muted); }
         document.getElementById('follow-btn').style.display = 'flex';
         document.getElementById('drone-btn').style.display = 'flex';
 
+        // Update nav chat overlay visibility
+        updateNavChatVisibility();
+
         // Update buttons
         const btn = document.getElementById('navigate-btn');
         btn.innerHTML = '<i class="fas fa-stop" style="margin-right:6px;"></i>' + t('stop_nav');
@@ -4231,6 +4297,9 @@ html.dark .twitch-route-user { color:var(--text-muted); }
         document.getElementById('follow-btn').style.display = 'flex';
         document.getElementById('drone-btn').style.display = 'flex';
 
+        // Update nav chat overlay visibility
+        updateNavChatVisibility();
+
         // Update buttons
         const demoBtn = document.getElementById('demo-btn');
         demoBtn.innerHTML = '<i class="fas fa-stop" style="margin-right:6px;"></i>' + t('stop_demo');
@@ -4302,6 +4371,13 @@ html.dark .twitch-route-user { color:var(--text-muted); }
         document.getElementById('voice-controls').classList.remove('visible');
         document.getElementById('follow-btn').classList.remove('active');
         document.getElementById('drone-btn').classList.remove('active');
+
+        // Hide nav chat overlay
+        updateNavChatVisibility();
+        // Clear nav chat messages
+        navChatMessages = [];
+        const chatOverlay = document.getElementById('nav-chat-overlay');
+        if (chatOverlay) chatOverlay.innerHTML = '<div class="nav-chat-msg" id="nav-chat-placeholder" style="color:#64748b;"><i class="fab fa-twitch" style="margin-right:4px;"></i>Waiting for chat...</div>';
 
         // Re-show alt panel if multiple routes exist
         if (state.routes.length > 1) document.getElementById('alt-panel').classList.add('visible');
@@ -5501,12 +5577,14 @@ ${trackpoints}        </TrackSegment>
             this.updateStatusUI(true);
             this.addChatMessage('CargoNavi', '🚲 Connected! Viewers can use ' + this.settings.command + ' <address> to submit waypoints.', '#10b981');
             showToast('Connected to Twitch chat!', 'success');
+            updateNavChatVisibility();
         },
 
         onDisconnected() {
             this.connected = false;
             this.updateStatusUI(false);
             this.addChatMessage('System', '⚠️ Disconnected from Twitch chat.', '#ef4444');
+            updateNavChatVisibility();
         },
 
         updateStatusUI(connected) {
@@ -5542,6 +5620,9 @@ ${trackpoints}        </TrackSegment>
 
             // Show ALL chat messages in the chat panel
             this.addChatMessage(username, text, userColor);
+
+            // Update nav chat overlay on map
+            updateNavChatOverlay(username, text, userColor);
 
             // Process commands
             if (text.startsWith('!')) {
