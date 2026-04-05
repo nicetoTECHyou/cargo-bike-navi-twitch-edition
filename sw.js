@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v4
-const CACHE_NAME = 'cargonavi-v4'; // v4 — Fixed time estimation + sanity check
+// CargoNavi — Service Worker v5
+const CACHE_NAME = 'cargonavi-v5'; // v5 — GPS nav for Twitch + time fix + no-cache meta
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404
