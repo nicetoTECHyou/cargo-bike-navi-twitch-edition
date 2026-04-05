@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v17
-const CACHE_NAME = 'cargonavi-v17'; // v17 — Nav chat overlay shows whenever Twitch connected
+// CargoNavi — Service Worker v18
+const CACHE_NAME = 'cargonavi-v18'; // v18 — Fix duplicate search results
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404

@@ -2589,10 +2589,10 @@ html.dark .twitch-route-user { color:var(--text-muted); }
     // ============================================
     // GEOCODING (Nominatim)
     // ============================================
-    let searchDebounce = null;
+    let searchDebounce = { start: null, end: null };
     function debounceSearch(query, type) {
-        clearTimeout(searchDebounce);
-        searchDebounce = setTimeout(() => searchLocation(query, type), 400);
+        clearTimeout(searchDebounce[type]);
+        searchDebounce[type] = setTimeout(() => searchLocation(query, type), 400);
     }
 
     // ============================================
@@ -2652,7 +2652,14 @@ html.dark .twitch-route-user { color:var(--text-muted); }
     function showSearchResults(results, type) {
         const container = document.getElementById(`search-results-${type}`);
         container.innerHTML = '';
-        results.forEach(r => {
+        // Deduplicate by display_name — Nominatim often returns same city as city/boundary/town
+        const seen = new Set();
+        const deduped = results.filter(r => {
+            if (seen.has(r.display_name)) return false;
+            seen.add(r.display_name);
+            return true;
+        });
+        deduped.forEach(r => {
             const div = document.createElement('div');
             div.className = 'search-result-item';
             div.textContent = r.display_name;
