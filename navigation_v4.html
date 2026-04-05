@@ -5519,10 +5519,13 @@ ${trackpoints}        </TrackSegment>
         },
 
         async handleNearestCharger(username, isAdmin) {
+            console.log('[!charger] Triggered by', username, '| GPS:', state.lastGpsLat, state.lastGpsLng);
+
             // Check GPS position
             if (state.lastGpsLat === null || state.lastGpsLng === null) {
-                this.say('/w ' + username + ' ❌ Keine GPS-Position verfügbar — Navi braucht Standort!');
+                this.say('@' + username + ' ❌ Keine GPS-Position — Navi braucht Standort!');
                 this.addChatMessage('System', '❌ !charger failed: no GPS position', '#ef4444');
+                showToast('!charger: No GPS position', 'error');
                 return;
             }
 
@@ -5530,7 +5533,7 @@ ${trackpoints}        </TrackSegment>
             const now = Date.now();
             const lastUse = this.cooldowns.get(username) || 0;
             if (now - lastUse < this.settings.cooldown * 1000) {
-                this.say('/w ' + username + ' ⏳ Please wait before using !charger again.');
+                this.say('@' + username + ' ⏳ Cooldown active — bitte warte kurz!');
                 return;
             }
 
@@ -5568,7 +5571,7 @@ ${trackpoints}        </TrackSegment>
                 const data = await resp.json();
 
                 if (!data.elements || data.elements.length === 0) {
-                    this.say('/w ' + username + ' ❌ Keine Ladestation in 5km Umkreis gefunden!');
+                    this.say('❌ @' + username + ' Keine Ladestation in 5km Umkreis gefunden!');
                     this.addChatMessage('System', '❌ No charger found within 5km', '#ef4444');
                     showToast('No charging station within 5km', 'error');
                     return;
@@ -5593,7 +5596,7 @@ ${trackpoints}        </TrackSegment>
                 }
 
                 if (!nearest) {
-                    this.say('/w ' + username + ' ❌ Keine gültige Ladestation gefunden!');
+                    this.say('❌ @' + username + ' Keine gültige Ladestation gefunden!');
                     return;
                 }
 
@@ -5632,7 +5635,7 @@ ${trackpoints}        </TrackSegment>
 
             } catch(e) {
                 console.error('Charger search error:', e);
-                this.say('/w ' + username + ' ❌ Fehler bei der Ladestations-Suche!');
+                this.say('❌ @' + username + ' Fehler bei der Ladestations-Suche!');
                 this.addChatMessage('System', '❌ Charger search error: ' + e.message, '#ef4444');
                 showToast('Charger search failed', 'error');
             }
