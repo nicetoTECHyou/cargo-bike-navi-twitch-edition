@@ -1,5 +1,5 @@
 // CargoNavi — Service Worker v1
-const CACHE_NAME = 'cargonavi-v35'; // v3.5 — GPS nav marker + driven path layer
+const CACHE_NAME = 'cargonavi-v1'; // v1.0 — Initial release (tabs + twitch + all features)
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404
@@ -70,7 +70,7 @@ self.addEventListener('fetch', event => {
                 return caches.match(event.request).then(cached => {
                     if (cached) return cached;
                     // If anything fails, serve the main app page
-                    return caches.match('./navigation_v3.html');
+                    return caches.match('./navigation_v4.html');
                 });
             })
     );

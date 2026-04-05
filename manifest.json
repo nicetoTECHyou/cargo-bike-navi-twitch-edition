@@ -1,8 +1,8 @@
 {
-    "name": "CargoNavi — Cargo Bike Navigation",
-    "short_name": "CargoNavi",
+    "name": "CargoNavi Twitch Edition— Cargo Bike Navigation",
+    "short_name": "CargoNavi TwitchEdition",
     "description": "Cargo Bike Navigation System with route planning, satellite map, POI layers, and turn-by-turn guidance",
-    "start_url": "./navigation_v3.html",
+    "start_url": "./navigation_v4.html",
     "scope": "./",
     "display": "standalone",
     "orientation": "any",
