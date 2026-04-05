@@ -5416,6 +5416,8 @@ ${trackpoints}        </TrackSegment>
 
                 if (command === this.settings.command.toLowerCase()) {
                     this.handleWaypoint(username, args, isAdmin);
+                } else if (command === '!charger') {
+                    this.handleNearestCharger(username, isAdmin);
                 } else if (command === '!route') {
                     this.handleRoute(username);
                 } else if (command === '!stops') {
@@ -5513,6 +5515,126 @@ ${trackpoints}        </TrackSegment>
                 this.pendingWaypoints.push(wp);
                 this.say('🚲 @' + username + ' hat eine Adresse eingereicht — wartet auf Bestätigung!');
                 this.renderPendingQueue();
+            }
+        },
+
+        async handleNearestCharger(username, isAdmin) {
+            // Check GPS position
+            if (state.lastGpsLat === null || state.lastGpsLng === null) {
+                this.say('/w ' + username + ' ❌ Keine GPS-Position verfügbar — Navi braucht Standort!');
+                this.addChatMessage('System', '❌ !charger failed: no GPS position', '#ef4444');
+                return;
+            }
+
+            // Cooldown check
+            const now = Date.now();
+            const lastUse = this.cooldowns.get(username) || 0;
+            if (now - lastUse < this.settings.cooldown * 1000) {
+                this.say('/w ' + username + ' ⏳ Please wait before using !charger again.');
+                return;
+            }
+
+            // Total limit
+            if (this.pendingWaypoints.length + this.approvedWaypoints.length >= this.settings.maxTotal) {
+                showToast('Max waypoints reached!', 'error');
+                return;
+            }
+
+            this.say('⚡ @' + username + ' sucht die nächstgelegene Ladestation...');
+            this.addChatMessage('System', '⚡ @' + username + ' searching nearest charger...', '#f59e0b');
+            showToast('⚡ Searching nearest charging station...', 'info');
+
+            try {
+                // Search Overpass for nearest charging stations around GPS position (5km radius)
+                const lat = state.lastGpsLat;
+                const lng = state.lastGpsLng;
+                const radius = 5000; // 5km
+                const query = `
+                    [out:json][timeout:15];
+                    (
+                        node["amenity"="charging_station"](around:${radius},${lat},${lng});
+                        way["amenity"="charging_station"](around:${radius},${lat},${lng});
+                        relation["amenity"="charging_station"](around:${radius},${lat},${lng});
+                    );
+                    out center tags;
+                `;
+                const resp = await fetch('https://overpass-api.de/api/interpreter', {
+                    method: 'POST',
+                    body: 'data=' + encodeURIComponent(query),
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                });
+
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+
+                if (!data.elements || data.elements.length === 0) {
+                    this.say('/w ' + username + ' ❌ Keine Ladestation in 5km Umkreis gefunden!');
+                    this.addChatMessage('System', '❌ No charger found within 5km', '#ef4444');
+                    showToast('No charging station within 5km', 'error');
+                    return;
+                }
+
+                // Find nearest station by distance
+                let nearest = null;
+                let nearestDist = Infinity;
+                for (const el of data.elements) {
+                    const tags = el.tags || {};
+                    const name = tags['name:de'] || tags['name'] || tags['name:en'] || 'Ladestation';
+                    let sLat, sLng;
+                    if (el.type === 'node') { sLat = el.lat; sLng = el.lon; }
+                    else { sLat = el.center?.lat; sLng = el.center?.lon; }
+                    if (!sLat || !sLng) continue;
+
+                    const dist = haversine(lat, lng, sLat, sLng);
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearest = { name, lat: sLat, lng: sLng, tags };
+                    }
+                }
+
+                if (!nearest) {
+                    this.say('/w ' + username + ' ❌ Keine gültige Ladestation gefunden!');
+                    return;
+                }
+
+                // Add as waypoint
+                const distStr = nearestDist < 1 ? Math.round(nearestDist * 1000) + 'm' : nearestDist.toFixed(1) + 'km';
+                const wp = {
+                    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+                    username: username,
+                    displayName: username,
+                    input: '⚡ ' + nearest.name,
+                    address: '⚡ ' + nearest.name + ' (' + distStr + ')',
+                    lat: nearest.lat,
+                    lon: nearest.lng,
+                    status: 'pending',
+                    timestamp: now,
+                    addressValid: true,
+                };
+                this.cooldowns.set(username, now);
+
+                // Auto-approve
+                if (this.settings.autoApprove) {
+                    wp.status = 'approved';
+                    wp.approvedAt = Date.now();
+                    wp.distFromPos = this.getDistFromPos(wp);
+                    this.approvedWaypoints.push(wp);
+                    this.sortAndLabelWaypoints();
+                    this.say('⚡ @' + username + ' neareste Ladestation: ' + nearest.name + ' (' + distStr + ') zur Route hinzugefügt! (' + (wp.role === 'finish' ? '🏁 Finish' : '📍 Via') + ')');
+                    this.addChatMessage('System', '⚡ Auto-approved: ' + nearest.name + ' (' + distStr + ') by @' + username, '#f59e0b');
+                    this.renderRouteList();
+                    this.autoCalculateRoute();
+                } else {
+                    this.pendingWaypoints.push(wp);
+                    this.say('⚡ @' + username + ' Ladestation gefunden: ' + nearest.name + ' (' + distStr + ') — wartet auf Bestätigung!');
+                    this.renderPendingQueue();
+                }
+
+            } catch(e) {
+                console.error('Charger search error:', e);
+                this.say('/w ' + username + ' ❌ Fehler bei der Ladestations-Suche!');
+                this.addChatMessage('System', '❌ Charger search error: ' + e.message, '#ef4444');
+                showToast('Charger search failed', 'error');
             }
         },
 
