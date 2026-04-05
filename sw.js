@@ -4,7 +4,7 @@ const CACHE_NAME = 'cargonavi-v35'; // v3.5 — GPS nav marker + driven path lay
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404
 const PRECACHE_URLS = [
-    './navigation_v3.html',
+    './navigation_v4.html',
     './icon-192.png',
     './icon-512-final.png',
     './manifest.json',
