@@ -10,7 +10,7 @@
 [![GPS](https://img.shields.io/badge/GPS-Realtime-3b82f6?style=flat-square)]()
 [![Twitch](https://img.shields.io/badge/Twitch-Community_Navigation-9146FF?style=flat-square)]()
 [![Tabs](https://img.shields.io/badge/UI-Tabbed_Sidebar-10b981?style=flat-square)]()
-[![Version](https://img.shields.io/badge/Version-1.0-059669?style=flat-square)]()
+[![Version](https://img.shields.io/badge/Version-1.1-059669?style=flat-square)]()
 
 **Dein Lastenrad-Navi: Ohne App Store, ohne Backend, ohne Datensammlung und vor allem ohne Kosten.**
 
@@ -78,14 +78,15 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 ### 💬 Twitch Community Navigation
 * **Chat-Verbindung:** Verbinde dich mit deinem Twitch-Kanal per tmi.js WebSocket — kein Backend nötig. Kanalname, Bot-Name und OAuth-Token mit Auto-Load.
 * **Sichere Token-Verwaltung:** OAuth-Token wird base64-verschlüsselt in localStorage gespeichert, nie im Klartext angezeigt. Show/Hide-Toggle (Eye-Icon) für manuelle Prüfung. Sicherheits-Check vor Verbindungsaufbau.
+* **Live Chat:** Dark-Themed Chat-Panel zeigt **alle** Twitch-Nachrichten in Echtzeit mit Zeitstempel und farbigen Usernamen (aus Twitch-User-Farben). Nicht nur Commands — der ganze Chat ist sichtbar.
 * **Chat-Commands:** Viewer reichen Wegpunkte per `!waypoint <Adresse>` ein. Mods verwalten per `!approve <nr>` / `!reject <nr>`. Streamer: `!clearroute`.
-* **Content-Moderation:** Bad-Word-Filter (DE/EN inkl. L33t-Speak-Erkennung), Cooldown pro User, Limits pro User & gesamt, maximale Zeichenanzahl.
+* **Content-Moderation:** Bad-Word-Filter (DE/EN inkl. L33t-Speak-Erkennung, Wortanfang-Matching statt Substring), Cooldown pro User, Limits pro User & gesamt, maximale Zeichenanzahl.
 * **Adressvalidierung:** Eingereichte Adressen werden via Nominatim API validiert — graceful Fallback bei API-Fehler.
 * **Pending Queue:** Visuelle Liste mit Username, Adresse, Zeitstempel und Approve/Reject-Buttons. Bulk-Actions (Alle akzeptieren/ablehnen).
-* **Community-Route:** Automatische Routenberechnung durch alle bestätigten Wegpunkte via BRouter API. Navigation direkt aus dem Twitch-Tab starten.
-* **Live Chat:** Dark-Themed Chat-Panel zeigt CargoNavi-Nachrichten in Echtzeit mit Zeitstempel und farbigen Usernamen.
-* **Bot-Antworten:** Automatische Chat-Meldungen für Transparenz. Silent-Reject-Prinzip für abgelehnte Einreichungen (Trolls bekommen keine Aufmerksamkeit).
-* **Einstellungen:** Command-Prefix, Cooldown, Limits, Filter — alles einstellbar und einklappbar.
+* **🧠 Smart Auto-Routing (NEU):** Freigegebene Wegpunkte werden automatisch sortiert (nah → fern) und als VIA/Finish zugewiesen. Route wird automatisch bei jedem Approve/Remove neu berechnet — kein Klicken während der Fahrt nötig.
+* **🏁 Smart Finish-Logik:** Der am weitesten entfernte Punkt wird automatisch zum Finish. Wenn ein neuer Punkt noch weiter weg ist, wird er das neue Finish und das alte wird zum VIA. Manuelles Setzen per Tap auf einen VIA-Punkt.
+* **📍 Entfernungs-Badges:** Jeder freigegebene Wegpunkt zeigt seine Entfernung von der aktuellen GPS-Position (z.B. "2.3km", "150m").
+* **🎨 Farbcodierte Routenliste:** VIA-Stopps sind blau, Finish ist amber/gold. Ein Klick auf einen VIA macht ihn zum Finish.
 * **GPX-Export:** Community-Routen direkt aus dem Twitch-Tab exportieren.
 
 ### 🌍 System & UI
@@ -116,14 +117,14 @@ Wähle dein passendes Profil für präzise Ankunftszeiten (1–200 km/h einstell
 | **Sprachausgabe** | Web Speech API (`speechSynthesis`) |
 | **Twitch Chat** | [tmi.js](https://tmi.js/) v1.9.0-pre.1 (WebSocket CDN) |
 | **Styling** | Tailwind CSS + Custom CSS (Dark Mode) |
-| **Architektur** | 100% Client-Side (Single-File HTML, 5695 Zeilen) |
+| **Architektur** | 100% Client-Side (Single-File HTML, 5826 Zeilen) |
 | **Offline** | Service Worker (Cache-First für Assets, Network-First für API) |
 | **PWA** | Installierbar auf Android, iOS, Desktop |
 
 ### 📂 Dateistruktur
 ```text
 CargoNavi/
-├── navigation_v4.html      # Hauptdatei (v1.0)
+├── navigation_v4.html      # Hauptdatei (v1.1)
 ├── navigation_v3.html      # Vorherige Version (Backup)
 ├── manifest.json           # PWA-Manifest
 ├── sw.js                   # Service Worker (Offline-Cache)
@@ -143,7 +144,8 @@ CargoNavi/
 
 | Version | Datum | Beschreibung |
 | :--- | :--- | :--- |
-| **v1.0** | 2026-04-05 | Erste offizielle Veröffentlichung. Vollständiges Feature-Set: GPS-Navigation, Sprachansagen, Twitch-Integration, Tabbed Sidebar, POIs, Export |
+| **v1.1** | 2026-04-05 | Smart Auto-Routing (nah→fern Sortierung, VIA/Finish Logik, Auto-Recalculate), Twitch Bugfixes (Chat-Display, Commands, ContentFilter) |
+| **v1.0** | 2026-04-05 | Erste offizielle Veröffentlichung. GPS-Navigation, Sprachansagen, Twitch-Integration, Tabbed Sidebar, POIs, Export |
 | v0.5 | 2026-04-05 | GPS-Nav Marker (blauer Puls-Punkt), Fahrspur-Tracking (orange), Fahrzeug-Icons nur im Demo-Modus, Alternativrouten-Fix |
 | v0.4 | 2026-04-05 | 15 Bugfixes (Race Conditions, Cache, GPS-Leak, XSS, Performance) |
 | v0.3 | 2026-04-05 | Auto-Center & Auto GPS-Tracking beim Laden |

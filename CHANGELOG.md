@@ -4,6 +4,45 @@ All notable changes to CargoNavi will be documented in this file.
 
 ---
 
+## [v1.1] — Smart Waypoint Routing & Twitch Bugfixes — 2026-04-05
+
+### Added
+- **Smart Auto-Sort Waypoints** — Approved community waypoints are automatically sorted by distance from your current GPS position (nearest first, farthest last). Uses `haversine()` calculation with live GPS coordinates.
+- **Auto VIA / Finish Assignment** — The farthest approved waypoint is automatically labeled as **Finish** (🏁 amber). All other approved waypoints become **Via** stops (📍 blue). With only 1 waypoint, it's always the Finish.
+- **Smart Finish Replacement** — When a newly approved waypoint is farther away than the current Finish, the new point automatically becomes the Finish and the old Finish is demoted to a Via stop. No manual reordering needed.
+- **Auto-Recalculate Route** — Route recalculates automatically (800ms debounce) every time you approve, reject, or remove a waypoint. No need to click "Calculate Route" while driving — just approve and go.
+- **Tap to Set Finish** — Click any Via waypoint in the approved list to manually promote it to Finish. The old Finish becomes a Via, the list re-sorts, and the route recalculates.
+- **Remove Approved Waypoint** — Each approved waypoint now has an ✕ button to remove it from the route. Route auto-recalculates.
+- **Distance Badges** — Each approved waypoint shows its distance from your current GPS position (e.g., "2.3km", "150m", "?" if unknown).
+- **Color-Coded Route List** — Via items are blue-themed, Finish items are amber/gold-themed. Visual distinction at a glance.
+
+### Fixed
+- **Chat Messages Not Showing** — `onChatMessage()` discarded ALL non-command messages with `if (!text.startsWith('!')) return;`. Now ALL incoming Twitch chat messages are displayed in the chat panel. Command processing happens separately after display.
+- **Commands Not Accepted (Case Sensitivity)** — Command comparison `command === this.settings.command` was case-sensitive. If the user typed `!Waypoint` in settings but viewers sent `!waypoint`, it wouldn't match. Fixed with `.toLowerCase()` on both sides.
+- **ContentFilter False Positive on "Kassel"** — The bad-word filter used substring matching (`includes()`), so "Kassel" matched "ass" and was silently rejected. Rewrote filter to use word-start matching (`startsWith()`): "Kassel" no longer matches "ass", but "asshole" still does. L33t-speak detection ("f4ck", "s h i t") still works via concatenated text check.
+- **Duplicate Chat Messages** — Removed redundant `addChatMessage()` calls from `handleWaypoint()` and `handleRoute()` since all messages are now displayed in `onChatMessage()` before command processing.
+- **Route Not Cleared on `!clearroute`** — The `handleClearRoute()` chat command now also clears the route from the map and resets the distance/time stats display.
+
+### Changed
+- **`renderRouteList()`** — Completely rewritten. Now shows route order number, role label (Via/Finish), waypoint address, submitter, distance badge, and remove button. Items are color-coded by role.
+- **`ContentFilter.check()`** — Rewrote from single-pass `includes()` to word-boundary-aware matching. Single words use `startsWith()` per word (catches "asshole" but not "Kassel"). Multi-segment l33t-speak words (containing spaces) use concatenated text check.
+- **`handleClearRoute()`** — Now clears route GeoJSON from map source and resets stats display.
+
+### Design Decisions
+- **Why auto-recalculate?** When driving, you can't tap "Calculate Route" after every approval. Auto-recalculate with 800ms debounce handles rapid approvals gracefully (approving 5 waypoints quickly triggers only one calculation).
+- **Why near-to-far sorting?** The most intuitive route for a cargo bike delivery is: nearest stop first, work your way outward, farthest point last. Viewers don't need to know the order — the app figures it out.
+- **Why word-start matching for bad words?** Substring matching ("Kassel" contains "ass") produces too many false positives on normal city names and addresses. Word-start matching is stricter: it catches standalone profanity and prefixed forms ("asshole") while allowing legitimate words ("Kassel", "classic", "pass").
+
+### Technical Notes
+- `getDistFromPos(wp)` uses `haversine()` with `state.lastGpsLat/Lng` for distance calculation
+- `sortAndLabelWaypoints()` handles both sort and role assignment in one pass
+- `setAsFinish(index)` uses closure-bound `onclick` handlers for correct index binding
+- `autoCalculateRoute()` uses `setTimeout`/`clearTimeout` pattern for debouncing
+- Route order: `GPS Position` → `Via 1` (nearest) → `Via 2` → ... → `Finish` (farthest)
+- ContentFilter preserves l33t-speak detection by checking `bw.includes(' ')` for multi-segment words
+
+---
+
 ## [v1.0] — Initial Release — 2026-04-05
 
 CargoNavi v1.0 is the first official release of the cargo bike navigation system. It consolidates all prior development (v3.0–v3.5, v4.0) into a single, polished release with a complete feature set: real-time GPS navigation, voice guidance, interactive route planning, Twitch community integration, POI discovery, and a tabbed sidebar UI.
@@ -59,11 +98,11 @@ CargoNavi v1.0 is the first official release of the cargo bike navigation system
 - **Chat Connection** — Connect to any Twitch channel via tmi.js WebSocket client (no backend required). Channel name, bot name, and OAuth token inputs with auto-load from saved credentials.
 - **Secure Token Handling** — OAuth token stored as base64-encoded string in `localStorage`, never displayed in clear text. Show/hide toggle (eye icon) for manual verification. `typeof tmi` safety guard before connection attempt.
 - **Chat Commands** — Viewer-submitted waypoints via `!waypoint <address>`, `!route`, `!stops`. Moderator commands: `!approve <nr>`, `!reject <nr>`, `!clearroute` (mod/streamer only).
-- **Content Moderation** — Bad-word filter (DE/EN with l33t-speak detection), cooldown system per user, per-user submission limits, total waypoint cap, max character limit.
+- **Content Moderation** — Bad-word filter (DE/EN with word-start matching, l33t-speak detection), cooldown system per user, per-user submission limits, total waypoint cap, max character limit.
 - **Address Validation** — Submitted addresses validated via Nominatim API with graceful fallback on API failure.
 - **Pending Queue** — Visual list of submitted waypoints with username, address, timestamp, and approve/reject buttons. Bulk approve/reject all actions.
-- **Community Route Builder** — Approved waypoints list with distance/time stats. Calculates route through all approved waypoints via BRouter API. Start navigation directly from the Twitch tab.
-- **Live Chat Display** — Dark-themed chat panel showing CargoNavi-related messages with timestamps and colored usernames.
+- **Community Route Builder** — Approved waypoints auto-sorted near-to-far with automatic VIA/FINISH roles. Route calculates automatically on approve. Tap any Via to set as Finish.
+- **Live Chat Display** — Dark-themed chat panel showing ALL Twitch chat messages in real-time with timestamps and colored usernames (from Twitch user colors).
 - **Bot Responses** — Automated chat messages for transparency (pending notification, approval confirmation, route info). Rejected entries use silent reject principle.
 - **Collapsible Settings** — Command prefix, cooldown timer, max per user, max total, bad-word filter toggle, address validation toggle, max characters.
 - **Auto-Connect** — Optional auto-connection on page load if credentials are saved.
@@ -77,13 +116,13 @@ CargoNavi v1.0 is the first official release of the cargo bike navigation system
 - **Google Maps** — Direct link to Google Maps with route preview.
 
 ### Technical Architecture
-- **Single-File HTML** — Entire application in one file (5695 lines) with embedded CSS and JavaScript.
+- **Single-File HTML** — Entire application in one file (5826 lines) with embedded CSS and JavaScript.
 - **MapLibre GL JS v4.7** — Map rendering with GeoJSON sources and layers.
 - **BRouter API** — Bicycle-optimized routing with cache-busting timestamps.
 - **Nominatim (OSM)** — Geocoding via JSONP with throttled requests.
 - **Overpass API** — POI queries (charging, camping, tourist).
 - **Web Speech API** — Browser-native voice synthesis (no API keys).
-- **tmi.js v1.9.0-pre.1** — Twitch chat via WebSocket CDN.
+- **tmi.js v1.9.0-pre.1** — Twitch chat via WebSocket CDN (v1.8.5 has no browser bundle).
 - **Tailwind CSS + Custom CSS** — Styling with dark mode support.
 - **Service Worker** — Offline caching (cache-first for static assets, network-first for dynamic content).
 - **PWA** — Installable on Android, iOS, and desktop.
@@ -118,7 +157,7 @@ CargoNavi v1.0 is the first official release of the cargo bike navigation system
 
 ```
 CargoNavi/
-├── navigation_v4.html      # Main application (v1.0)
+├── navigation_v4.html      # Main application (v1.1)
 ├── navigation_v3.html      # Legacy version (backup)
 ├── manifest.json           # PWA manifest
 ├── sw.js                   # Service worker (offline cache)

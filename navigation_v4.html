@@ -1150,6 +1150,14 @@ html.dark .twitch-route-user { color:#94a3b8; }
                             <div class="toggle-thumb"></div>
                         </label>
                     </div>
+                    <div class="toggle-row">
+                        <span class="toggle-label" style="font-size:12px;" data-i18n="twitch.autoApprove">Auto-Approve</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="twitch-autoapprove" checked onchange="TwitchManager.updateSetting('autoApprove',this.checked)">
+                            <div class="toggle-track"></div>
+                            <div class="toggle-thumb"></div>
+                        </label>
+                    </div>
                     <div style="margin-bottom:8px;">
                         <label style="font-size:11px;color:#64748b;font-weight:600;display:block;margin-bottom:4px;" data-i18n="twitch.maxChars">Max Characters</label>
                         <input type="number" class="nav-input" id="twitch-maxchars" value="100" min="10" max="500" style="font-size:12px;" onchange="TwitchManager.updateSetting('maxChars',parseInt(this.value))">
@@ -1589,6 +1597,7 @@ html.dark .twitch-route-user { color:#94a3b8; }
             'twitch.maxTotal': { de:'Max gesamt', en:'Max Total' },
             'twitch.badWordFilter': { de:'Bad-Word-Filter', en:'Bad-Word Filter' },
             'twitch.addressValidation': { de:'Adressvalidierung', en:'Address Validation' },
+            'twitch.autoApprove': { de:'Auto-Freigabe', en:'Auto-Approve' },
             'twitch.maxChars': { de:'Max Zeichen', en:'Max Characters' },
             'twitch.coming_soon': { de:'Verbinde deinen Twitch-Kanal um Wegpunkte per Chat einzureichen!', en:'Connect your Twitch channel to let viewers submit waypoints via chat!' },
         }
@@ -5193,6 +5202,7 @@ ${trackpoints}        </TrackSegment>
             badWordFilter: true,
             addressValidation: true,
             maxChars: 100,
+            autoApprove: true,
         },
 
         init() {
@@ -5227,6 +5237,7 @@ ${trackpoints}        </TrackSegment>
                     document.getElementById('twitch-maxtotal').value = this.settings.maxTotal;
                     document.getElementById('twitch-badword').checked = this.settings.badWordFilter;
                     document.getElementById('twitch-addrvalid').checked = this.settings.addressValidation;
+                    document.getElementById('twitch-autoapprove').checked = this.settings.autoApprove;
                     document.getElementById('twitch-maxchars').value = this.settings.maxChars;
                 }
             } catch(e) { console.error('Failed to load Twitch credentials:', e); }
@@ -5421,7 +5432,7 @@ ${trackpoints}        </TrackSegment>
                 }
             }
 
-            // Add to pending
+            // Build waypoint object
             const wp = {
                 id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
                 username: username,
@@ -5434,15 +5445,26 @@ ${trackpoints}        </TrackSegment>
                 timestamp: now,
                 addressValid: lat !== null,
             };
-            this.pendingWaypoints.push(wp);
             this.cooldowns.set(username, now);
             this.userCounts.set(username, userCount + 1);
 
-            // Public bot response
-            this.say('🚲 @' + username + ' hat eine Adresse eingereicht — wartet auf Bestätigung!');
-
-            // Update UI
-            this.renderPendingQueue();
+            // Auto-approve: directly add to route (sorted near→far, auto-calculate)
+            if (this.settings.autoApprove) {
+                wp.status = 'approved';
+                wp.approvedAt = Date.now();
+                wp.distFromPos = this.getDistFromPos(wp);
+                this.approvedWaypoints.push(wp);
+                this.sortAndLabelWaypoints();
+                this.say('✅ @' + username + ' dein Wegpunkt wurde zur Route hinzugefügt! (' + (wp.role === 'finish' ? '🏁 Finish' : '📍 Via') + ')');
+                this.addChatMessage('System', '✅ Auto-approved: ' + wp.address + ' (@' + username + ') — ' + (wp.role === 'finish' ? '🏁 Finish' : '📍 Via'), '#10b981');
+                this.renderRouteList();
+                this.autoCalculateRoute();
+            } else {
+                // Manual mode: add to pending queue
+                this.pendingWaypoints.push(wp);
+                this.say('🚲 @' + username + ' hat eine Adresse eingereicht — wartet auf Bestätigung!');
+                this.renderPendingQueue();
+            }
         },
 
         handleRoute(username) {
