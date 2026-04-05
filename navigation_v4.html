@@ -5573,7 +5573,7 @@ ${trackpoints}        </TrackSegment>
                     const query = `
                         [out:json][timeout:10];
                         node["amenity"="charging_station"](around:${radius},${lat},${lng});
-                        out tags;
+                        out body tags;
                     `;
                     for (const endpoint of overpassEndpoints) {
                         try {
@@ -5619,13 +5619,14 @@ ${trackpoints}        </TrackSegment>
                 // Find nearest station by distance
                 let nearest = null;
                 let nearestDist = Infinity;
+                let skippedNoCoords = 0;
                 for (const el of data.elements) {
                     const tags = el.tags || {};
                     const name = tags['name:de'] || tags['name'] || tags['name:en'] || 'Ladestation';
                     let sLat, sLng;
                     if (el.type === 'node') { sLat = el.lat; sLng = el.lon; }
                     else { sLat = el.center?.lat; sLng = el.center?.lon; }
-                    if (!sLat || !sLng) continue;
+                    if (!sLat || !sLng) { skippedNoCoords++; continue; }
 
                     const dist = haversine(lat, lng, sLat, sLng);
                     if (dist < nearestDist) {
@@ -5635,6 +5636,7 @@ ${trackpoints}        </TrackSegment>
                 }
 
                 if (!nearest) {
+                    console.error('[!charger] All elements skipped! Total:', data.elements.length, '| No coords:', skippedNoCoords, '| First el:', JSON.stringify(data.elements[0]).substr(0, 200));
                     this.say('❌ @' + username + ' Keine gültige Ladestation gefunden!');
                     return;
                 }

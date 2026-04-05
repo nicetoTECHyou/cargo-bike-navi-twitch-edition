@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v10
-const CACHE_NAME = 'cargonavi-v10'; // v10 — Community waypoint markers on map
+// CargoNavi — Service Worker v11
+const CACHE_NAME = 'cargonavi-v11'; // v11 — Fix !charger out body tags (coords missing)
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404
