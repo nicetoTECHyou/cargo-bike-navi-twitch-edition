@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚲 CargoNavi
+# 🚲 CargoNavi Twitch Edition
 ### Satellitengestützte Navigation für Lastenräder & Co.
 
 [![PWA](https://img.shields.io/badge/PWA-Ready-green?style=flat-square)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps)
