@@ -1,5 +1,5 @@
-// CargoNavi — Service Worker v7
-const CACHE_NAME = 'cargonavi-v7'; // v7 — !charger fix: public chat + debug log
+// CargoNavi — Service Worker v8
+const CACHE_NAME = 'cargonavi-v8'; // v8 — Overpass fallback + glyphs fix + onMapClick fix
 
 // Files to pre-cache on install
 // NOTE: Do NOT include './' — GitHub Pages has no index.html and would return 404
